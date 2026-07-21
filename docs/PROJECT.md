@@ -50,7 +50,7 @@ Audio unlocks on first gesture (browser autoplay rules).
 
 ### 4.1 Portraits
 
-- **15 characters** in three tones: **Classic**, **Creepy**, **Seductive**
+- Cast in three tones: **Classic**, **Creepy**, **Seductive** (includes Lady Lysandra’s after-bath study)
 - Painted multi-frame life (not SVG fake eyelids):
   - Open eyes (base)
   - Closed eyes (blink / wink)

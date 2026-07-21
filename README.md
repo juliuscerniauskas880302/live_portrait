@@ -26,7 +26,7 @@ On the tablet: open the site → **Add to Home Screen** → long-press for setti
 
 ## Highlights
 
-- 15 living portraits (classic / creepy / seductive)
+- Living portraits (classic / creepy / seductive), including Lady Lysandra’s after-bath study
 - Multi-frame paint life (blink, smile, mouth) + head/breath motion
 - Micro-moments & acknowledge choreography
 - Day/Night + night outfits (selected salon cast)

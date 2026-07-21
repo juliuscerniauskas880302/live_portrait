@@ -26,6 +26,7 @@ export type PortraitId =
   | 'seraphina'
   | 'camille'
   | 'thalia'
+  | 'lysandra'
 
 export type PortraitTone = 'classic' | 'creepy' | 'seductive'
 

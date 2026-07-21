@@ -435,6 +435,28 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageNight: '/portraits/thalia-night.jpg',
     imageNightClosed: '/portraits/thalia-night-closed.jpg',
   },
+  lysandra: {
+    id: 'lysandra',
+    name: 'Lady Lysandra',
+    title: 'Muse of the Candle Bath',
+    era: 'c. 1694',
+    accent: '#c9a227',
+    skin: '#e8c4a8',
+    hair: '#3a2418',
+    robe: '#e8e0d4',
+    robeDark: '#8a7a68',
+    eyeColor: '#5a4838',
+    background: '#3a2018',
+    backgroundNight: '#140a08',
+    mood: 'Intimate, unguarded',
+    tone: 'seductive',
+    lore: 'Lady Lysandra sat for a private after-bath study by candlelight — a painting never meant for the public gallery. When her spirit bound to the canvas, she kept the linen wrap and the knowing look of someone who chose to be seen.',
+    quote: '"The bathwater cools, but the candle still burns... stay a while."',
+    image: '/portraits/lysandra.jpg',
+    imageClosed: '/portraits/lysandra-closed.jpg',
+    imageSmile: '/portraits/lysandra-smile.jpg',
+    imageMouth: '/portraits/lysandra-mouth.jpg',
+  },
 }
 
 export const PLAYLIST: PortraitId[] = [
@@ -458,6 +480,7 @@ export const PLAYLIST: PortraitId[] = [
   'seraphina',
   'camille',
   'thalia',
+  'lysandra',
 ]
 
 export const TONE_LABELS: Record<PortraitTone, string> = {
