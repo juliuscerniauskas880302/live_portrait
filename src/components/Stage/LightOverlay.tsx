@@ -6,7 +6,8 @@ export function LightOverlay() {
   const theme = useAppStore((s) => s.resolvedTheme)
   const perf = useAppStore((s) => s.performanceMode)
   const idle = useAppStore((s) => s.idle)
-  const eyeBrighten = useAppStore((s) => s.motion.eyeBrighten)
+  // Quantize so continuous 0.992 decay does not re-render the whole overlay every frame
+  const eyeBrighten = useAppStore((s) => Math.round(s.motion.eyeBrighten * 20) / 20)
   const lightning = useAppStore((s) => s.frameLife.lightning)
 
   return (

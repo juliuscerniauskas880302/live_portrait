@@ -12,6 +12,10 @@ interface Props {
 /**
  * Canvas life engine: multi-frame oil portrait stack.
  * neutral → smile → mouth → closed (blink), shared head transform.
+ *
+ * High-frequency state (motion / parallax / theme / idle) is read from the
+ * store inside rAF — not via React subscriptions — so React does not re-render
+ * this component 60×/s (a common mobile flicker source).
  */
 export function OilLifeCanvas({
   imageSrc,
@@ -21,26 +25,14 @@ export function OilLifeCanvas({
   active,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const motion = useAppStore((s) => s.motion)
-  const parallax = useAppStore((s) => s.parallax)
-  const theme = useAppStore((s) => s.resolvedTheme)
   const perf = useAppStore((s) => s.performanceMode)
-  const idle = useAppStore((s) => s.idle)
-
-  const motionRef = useRef(motion)
-  const parallaxRef = useRef(parallax)
-  const themeRef = useRef(theme)
-  const idleRef = useRef(idle)
-  motionRef.current = motion
-  parallaxRef.current = parallax
-  themeRef.current = theme
-  idleRef.current = idle
 
   useEffect(() => {
     if (!active) return
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d', { alpha: false })
+    // alpha:false avoids expensive alpha compositing with the plate underneath
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })
     if (!ctx) return
 
     const openImg = new Image()
@@ -65,10 +57,18 @@ export function OilLifeCanvas({
     let smileReady = false
     let mouthReady = false
 
-    openImg.onload = () => { openReady = true }
-    closedImg.onload = () => { closedReady = true }
-    if (smileImg) smileImg.onload = () => { smileReady = true }
-    if (mouthImg) mouthImg.onload = () => { mouthReady = true }
+    openImg.onload = () => {
+      openReady = true
+    }
+    closedImg.onload = () => {
+      closedReady = true
+    }
+    if (smileImg) smileImg.onload = () => {
+      smileReady = true
+    }
+    if (mouthImg) mouthImg.onload = () => {
+      mouthReady = true
+    }
     if (openImg.complete && openImg.naturalWidth > 0) openReady = true
     if (closedImg.complete && closedImg.naturalWidth > 0) closedReady = true
     if (smileImg?.complete && smileImg.naturalWidth > 0) smileReady = true
@@ -79,17 +79,36 @@ export function OilLifeCanvas({
     let w = 0
     let h = 0
     let dpr = 1
+    let lastCssW = 0
+    let lastCssH = 0
+    let resizeRaf = 0
     const start = performance.now()
 
-    const resize = () => {
+    // Coarse pointers / touch UAs get a calmer light model (high-freq sin flicker
+    // reads as strobing when the GPU drops frames).
+    const isCoarse =
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(pointer: coarse)').matches ||
+        window.matchMedia('(hover: none)').matches)
+
+    const applyResize = () => {
       const rect = canvas.getBoundingClientRect()
-      const newW = Math.max(1, Math.floor(rect.width))
-      const newH = Math.max(1, Math.floor(rect.height))
+      // Round once; ignore sub-pixel thrash from mobile browser chrome
+      const newW = Math.max(1, Math.round(rect.width))
+      const newH = Math.max(1, Math.round(rect.height))
+
+      // Deadband: ignore 1px layout jitter from URL bar / soft UI
+      if (Math.abs(newW - lastCssW) < 2 && Math.abs(newH - lastCssH) < 2 && w > 0) {
+        return
+      }
+      lastCssW = newW
+      lastCssH = newH
+
       dpr =
         perf === 'high'
-          ? Math.min(window.devicePixelRatio || 1, 1.5)
+          ? Math.min(window.devicePixelRatio || 1, isCoarse ? 1.25 : 1.5)
           : perf === 'balanced'
-            ? Math.min(window.devicePixelRatio || 1, 1.25)
+            ? Math.min(window.devicePixelRatio || 1, isCoarse ? 1 : 1.25)
             : 1
       const targetW = Math.floor(newW * dpr)
       const targetH = Math.floor(newH * dpr)
@@ -97,6 +116,7 @@ export function OilLifeCanvas({
       if (canvas.width !== targetW || canvas.height !== targetH) {
         w = newW
         h = newH
+        // Buffer reallocation clears the canvas — only when size truly changed
         canvas.width = targetW
         canvas.height = targetH
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -104,6 +124,15 @@ export function OilLifeCanvas({
         w = newW
         h = newH
       }
+    }
+
+    const resize = () => {
+      // Coalesce ResizeObserver storms (mobile visual viewport)
+      if (resizeRaf) return
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0
+        applyResize()
+      })
     }
 
     const coverDraw = (
@@ -132,18 +161,19 @@ export function OilLifeCanvas({
       ctx.restore()
     }
 
-    const drawLight = (t: number, blink: number) => {
-      const isNight = themeRef.current === 'night'
-      const px = parallaxRef.current.x
-      const py = parallaxRef.current.y
-      // Organic high-frequency candle flame flicker
-      const flicker =
-        0.82 + Math.sin(t * 9.1) * 0.12 + Math.cos(t * 15.3) * 0.08 + Math.sin(t * 27.7) * 0.05
+    const drawLight = (t: number, blink: number, isNight: boolean, px: number, py: number) => {
+      // Soft organic candle — keep frequencies low on coarse/touch devices so
+      // dropped frames don't strobe.
+      const flicker = isCoarse || perf !== 'high'
+        ? 0.9 + Math.sin(t * 2.4) * 0.06 + Math.cos(t * 3.7) * 0.04
+        : 0.82 +
+          Math.sin(t * 9.1) * 0.12 +
+          Math.cos(t * 15.3) * 0.08 +
+          Math.sin(t * 27.7) * 0.05
 
-      // Prominent Candle Flame Light & Shadow Projection
-      const candleX = w * (0.82 + Math.sin(t * 3.8) * 0.04 + px * 0.05)
-      const candleY = h * (0.75 + Math.cos(t * 4.9) * 0.03 + py * 0.04)
-      
+      const candleX = w * (0.82 + Math.sin(t * (isCoarse ? 1.6 : 3.8)) * 0.04 + px * 0.05)
+      const candleY = h * (0.75 + Math.cos(t * (isCoarse ? 2.1 : 4.9)) * 0.03 + py * 0.04)
+
       ctx.globalCompositeOperation = 'screen'
       const cg = ctx.createRadialGradient(candleX, candleY, w * 0.03, candleX, candleY, w * 0.7)
       cg.addColorStop(0, `rgba(255, 185, 80, ${0.32 * flicker * (1 - blink * 0.15)})`)
@@ -171,10 +201,18 @@ export function OilLifeCanvas({
         g.addColorStop(1, 'rgba(0,0,0,0)')
         ctx.globalCompositeOperation = 'screen'
       } else {
-        g.addColorStop(0, 'rgba(255, 245, 210, 0.16)')
-        g.addColorStop(0.5, 'rgba(255, 230, 180, 0.06)')
+        // soft-light is poorly accelerated on many Android GPUs; use screen
+        // with lower alpha on coarse devices
+        g.addColorStop(
+          0,
+          isCoarse ? 'rgba(255, 245, 210, 0.1)' : 'rgba(255, 245, 210, 0.16)',
+        )
+        g.addColorStop(
+          0.5,
+          isCoarse ? 'rgba(255, 230, 180, 0.04)' : 'rgba(255, 230, 180, 0.06)',
+        )
         g.addColorStop(1, 'rgba(0,0,0,0)')
-        ctx.globalCompositeOperation = 'soft-light'
+        ctx.globalCompositeOperation = isCoarse ? 'screen' : 'soft-light'
       }
       ctx.fillStyle = g
       ctx.fillRect(0, 0, w, h)
@@ -196,15 +234,22 @@ export function OilLifeCanvas({
 
     const tick = (now: number) => {
       if (!running) return
-      const m = motionRef.current
-      const p = parallaxRef.current
+      const store = useAppStore.getState()
+      const m = store.motion
+      const p = store.parallax
+      const isNight = store.resolvedTheme === 'night'
+      const idleMul = store.idle ? 0.5 : 1
       const t = (now - start) / 1000
-      const idleMul = idleRef.current ? 0.5 : 1
+
+      if (w < 1 || h < 1) {
+        applyResize()
+        raf = requestAnimationFrame(tick)
+        return
+      }
 
       const breath = m.breath * 0.014 * idleMul
       const scale = 1.06 + breath
 
-      // Prominent Watchful Pointer Movement Tracking
       const swayX =
         Math.sin(t * ((Math.PI * 2) / 11.3)) * 1.8 * idleMul +
         p.x * (w * (perf === 'low' ? 0.02 : 0.045))
@@ -222,7 +267,6 @@ export function OilLifeCanvas({
       const ox = swayX + shimmerX
       const oy = swayY + shimmerY
 
-      // Layer stack: neutral → smile → mouth → closed
       if (openReady) {
         coverDraw(openImg, ox, oy, scale, rot, tilt)
       }
@@ -258,14 +302,13 @@ export function OilLifeCanvas({
         ctx.globalAlpha = 1
       }
 
-      // Eye / face brighten (acknowledge, invitation, long stare)
       const bright = Math.max(
         m.eyeBrighten ?? 0,
         m.acknowledging ? 0.55 : 0,
         (m.longStare ?? 0) * 0.35,
       )
       if (bright > 0.02) {
-        ctx.globalCompositeOperation = 'soft-light'
+        ctx.globalCompositeOperation = isCoarse ? 'screen' : 'soft-light'
         const eg = ctx.createRadialGradient(
           w * (0.5 + m.gaze.x * 0.04),
           h * (0.36 + m.gaze.y * 0.03),
@@ -282,7 +325,6 @@ export function OilLifeCanvas({
         ctx.globalCompositeOperation = 'source-over'
       }
 
-      // Watchful 2.5D Eye Iris & Catchlight Tracking
       if (perf !== 'low' && blinkW < 0.4) {
         const eyeY = h * (0.355 + m.gaze.y * 0.035 + p.y * 0.025)
         const leftX = w * (0.42 + m.gaze.x * 0.035 + p.x * 0.03)
@@ -300,8 +342,7 @@ export function OilLifeCanvas({
         }
       }
 
-      // Interactive Oil Varnish Impasto Specular Glint Pass
-      if (perf !== 'low') {
+      if (perf !== 'low' && !isCoarse) {
         const specX = w * (0.5 + p.x * 0.42)
         const specY = h * (0.38 + p.y * 0.38)
         const sg = ctx.createRadialGradient(specX, specY, w * 0.04, specX, specY, w * 0.5)
@@ -314,9 +355,8 @@ export function OilLifeCanvas({
         ctx.globalCompositeOperation = 'source-over'
       }
 
-      // Oil shimmer ridge (high only) — slow specular band across paint
-      if (perf === 'high') {
-        const bandX = ((Math.sin(t * 0.11) * 0.5 + 0.5) * w * 1.2 - w * 0.1)
+      if (perf === 'high' && !isCoarse) {
+        const bandX = (Math.sin(t * 0.11) * 0.5 + 0.5) * w * 1.2 - w * 0.1
         ctx.globalCompositeOperation = 'soft-light'
         const ridge = ctx.createLinearGradient(bandX - w * 0.08, 0, bandX + w * 0.08, h)
         ridge.addColorStop(0, 'rgba(255,255,255,0)')
@@ -330,7 +370,7 @@ export function OilLifeCanvas({
       }
 
       if (perf !== 'low') {
-        drawLight(t, m.blink)
+        drawLight(t, m.blink, isNight, p.x, p.y)
       } else {
         const vg = ctx.createRadialGradient(
           w * 0.5,
@@ -346,7 +386,8 @@ export function OilLifeCanvas({
         ctx.fillRect(0, 0, w, h)
       }
 
-      if (perf === 'high') {
+      // Film grain only on desktop high — Math.random every pixel is pure noise flicker on tablets
+      if (perf === 'high' && !isCoarse) {
         ctx.globalAlpha = 0.028
         for (let i = 0; i < 28; i++) {
           const gx = Math.random() * w
@@ -362,7 +403,7 @@ export function OilLifeCanvas({
 
     const tryStart = () => {
       if (!raf && openReady) {
-        resize()
+        applyResize()
         raf = requestAnimationFrame(tick)
       }
     }
@@ -393,11 +434,12 @@ export function OilLifeCanvas({
 
     const ro = new ResizeObserver(() => resize())
     ro.observe(canvas)
-    resize()
+    applyResize()
 
     return () => {
       running = false
       cancelAnimationFrame(raf)
+      if (resizeRaf) cancelAnimationFrame(resizeRaf)
       ro.disconnect()
     }
   }, [imageSrc, closedSrc, smileSrc, mouthSrc, active, perf])

@@ -13,7 +13,6 @@ export function DigitalFrame({ portrait, children, onOpenLore }: Props) {
   const showNameplate = useAppStore((s) => s.showNameplate)
   const layout = useAppStore((s) => s.layout)
   const theme = useAppStore((s) => s.resolvedTheme)
-  const parallax = useAppStore((s) => s.parallax)
   const idle = useAppStore((s) => s.idle)
   const frameLife = useAppStore((s) => s.frameLife)
   const acknowledging = useAppStore((s) => s.motion.acknowledging)
@@ -22,8 +21,8 @@ export function DigitalFrame({ portrait, children, onOpenLore }: Props) {
     return <div className="frame-fullscreen">{children}</div>
   }
 
-  const shadowX = 8 + parallax.x * 6
-  const shadowY = 10 + parallax.y * 4
+  // Static shadow — parallax-driven box-shadow re-rasterizes every frame on mobile
+  // GPUs and reads as frame flicker. Specular / knock still animate via classes.
   const knock = frameLife.knock ? 1 : 0
   const spec = 0.35 + frameLife.specularBoost * 0.45
 
@@ -36,7 +35,7 @@ export function DigitalFrame({ portrait, children, onOpenLore }: Props) {
         }`}
         style={{
           boxShadow: `
-            ${shadowX + knock * 2}px ${shadowY + knock * 3}px ${28 + knock * 8}px rgba(0,0,0,0.55),
+            ${8 + knock * 2}px ${10 + knock * 3}px ${28 + knock * 8}px rgba(0,0,0,0.55),
             inset 0 0 0 2px rgba(201, 162, 39, ${spec}),
             inset 0 0 0 8px rgba(40, 28, 12, 0.9)
           `,

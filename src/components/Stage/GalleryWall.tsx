@@ -42,7 +42,7 @@ export function GalleryWall() {
               aria-label={`Focus ${p.name}`}
             >
               <div className="gallery-inner">
-                <LivingPortrait portrait={p} compact />
+                <LivingPortrait portrait={p} compact compactActive={featured} />
               </div>
               <span className="gallery-label">
                 <span className="gallery-name">{p.name}</span>

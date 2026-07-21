@@ -32,13 +32,27 @@ export function ParticleOverlay() {
     const count = perf === 'high' ? 32 : idle ? 10 : 16
     let motes: Mote[] = []
 
+    let lastW = 0
+    let lastH = 0
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, perf === 'high' ? 1.5 : 1)
-      w = canvas.clientWidth
-      h = canvas.clientHeight
-      canvas.width = Math.floor(w * dpr)
-      canvas.height = Math.floor(h * dpr)
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const nextW = Math.max(1, Math.round(canvas.clientWidth))
+      const nextH = Math.max(1, Math.round(canvas.clientHeight))
+      // Deadband: avoid buffer thrash from mobile browser chrome
+      if (Math.abs(nextW - lastW) < 2 && Math.abs(nextH - lastH) < 2 && lastW > 0) {
+        return
+      }
+      lastW = nextW
+      lastH = nextH
+      w = nextW
+      h = nextH
+      const targetW = Math.floor(w * dpr)
+      const targetH = Math.floor(h * dpr)
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW
+        canvas.height = targetH
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      }
       motes = Array.from({ length: count }, () => spawn(true))
     }
 

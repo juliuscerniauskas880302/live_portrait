@@ -402,8 +402,9 @@ button {
 .frame-fullscreen {
   position: absolute;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  /* % not vw/vh — mobile browser chrome thrashing 100vh causes canvas resize flicker */
+  width: 100%;
+  height: 100%;
   z-index: 1;
   overflow: hidden;
 }
@@ -412,8 +413,8 @@ button {
 .frame-fullscreen .oil-life-canvas,
 .frame-fullscreen .portrait-transition-stack,
 .frame-fullscreen .portrait-layer {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -445,15 +446,26 @@ button {
 
 .ornate-frame {
   position: relative;
-  width: min(98vw, calc(98vh * 0.78));
-  height: min(98vh, calc(98vw / 0.78));
+  width: min(98%, calc(98dvh * 0.78));
+  height: min(98dvh, calc(98% / 0.78));
   max-width: 1400px;
-  max-height: 98vh;
+  max-height: 98%;
   padding: clamp(6px, 1.6vw, 16px);
   background: var(--frame-outer);
   border-radius: 4px;
   transition: box-shadow 0.8s ease;
   z-index: 2;
+  /* Own compositor layer — stops frame chrome repainting when canvas updates */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout style paint;
+}
+
+@supports not (height: 1dvh) {
+  .ornate-frame {
+    width: min(98%, calc(98vh * 0.78));
+    height: min(98vh, calc(98% / 0.78));
+  }
 }
 
 .ornate-frame::before {
@@ -1164,6 +1176,9 @@ button {
   z-index: 1;
   display: block;
   pointer-events: none;
+  /* Promote canvas to its own layer so paint does not dirty the frame chrome */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .portrait-bg-plate {
@@ -1174,7 +1189,37 @@ button {
   filter: blur(22px) saturate(1.15) brightness(0.45);
   z-index: 0;
   pointer-events: none;
-  transform: scale(1.05);
+  transform: scale(1.05) translateZ(0);
+}
+
+/* Heavy blur + mix-blend under an animating canvas is a common Android flicker source */
+@media (pointer: coarse), (hover: none) {
+  .portrait-bg-plate {
+    filter: blur(12px) saturate(1.1) brightness(0.4);
+  }
+
+  .portrait-canvas-finish {
+    /* Drop animated SVG noise overlay on touch devices */
+    background: radial-gradient(
+      ellipse at center,
+      transparent 42%,
+      rgba(0, 0, 0, 0.34) 100%
+    );
+    mix-blend-mode: normal;
+    opacity: 0.55;
+  }
+
+  .living-portrait.theme-day .portrait-grade,
+  .living-portrait.theme-night .portrait-grade {
+    mix-blend-mode: normal;
+  }
+
+  .frame-specular {
+    /* Soft crawl + soft-light is expensive; keep a static sheen on tablets */
+    animation: none;
+    mix-blend-mode: normal;
+    opacity: 0.35;
+  }
 }
 
 /* Compact gallery: dual painted frames (open under closed) */

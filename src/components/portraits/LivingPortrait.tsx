@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { PortraitDef, ResolvedTheme } from '../../types/portrait'
 import { useAppStore } from '../../store/useAppStore'
@@ -7,6 +7,8 @@ import { OilLifeCanvas } from './OilLifeCanvas'
 interface Props {
   portrait: PortraitDef
   compact?: boolean
+  /** When compact, only the featured tile runs motion CSS updates (saves battery). */
+  compactActive?: boolean
 }
 
 function resolveFrames(p: PortraitDef, theme: ResolvedTheme) {
@@ -21,12 +23,21 @@ function resolveFrames(p: PortraitDef, theme: ResolvedTheme) {
   }
 }
 
-export function LivingPortrait({ portrait: p, compact }: Props) {
+export function LivingPortrait({
+  portrait: p,
+  compact,
+  compactActive = false,
+}: Props) {
   const theme = useAppStore((s) => s.resolvedTheme)
-  const motion = useAppStore((s) => s.motion)
-  const parallax = useAppStore((s) => s.parallax)
   const perf = useAppStore((s) => s.performanceMode)
+  // Full canvas mode must NOT subscribe to motion/parallax — those update every
+  // frame and force React re-renders of expensive DOM (blur plate, blend layers).
+  // Compact gallery still needs blink/breath CSS vars; drive them via rAF + ref.
+  const acknowledging = useAppStore((s) =>
+    compact ? false : s.motion.acknowledging,
+  )
   const [active, setActive] = useState(true)
+  const compactRootRef = useRef<HTMLDivElement>(null)
 
   const frames = useMemo(() => resolveFrames(p, theme), [p, theme])
 
@@ -47,12 +58,63 @@ export function LivingPortrait({ portrait: p, compact }: Props) {
     }
   }, [frames, compact, perf])
 
+  // Compact gallery: only the featured tile animates (avoids N rAF loops)
+  useEffect(() => {
+    if (!compact || !compactActive) return
+    let raf = 0
+    let running = true
+    let lastBlink = -1
+    let lastBreath = -1
+    let lastRot = -999
+    let lastTilt = -999
+    let lastPx = -999
+    let lastPy = -999
+
+    const tick = () => {
+      if (!running) return
+      const el = compactRootRef.current
+      if (el) {
+        const { motion, parallax } = useAppStore.getState()
+        const breath = 1 + motion.breath * 0.006
+        const depthX = parallax.x * 2
+        const depthY = parallax.y * 1.5
+        // Deadband CSS writes — avoid style thrash on every micro change
+        if (Math.abs(motion.blink - lastBlink) > 0.02) {
+          lastBlink = motion.blink
+          el.style.setProperty('--blink', String(motion.blink))
+        }
+        if (Math.abs(breath - lastBreath) > 0.001) {
+          lastBreath = breath
+          el.style.setProperty('--breath', String(breath))
+        }
+        if (Math.abs(motion.headRotate - lastRot) > 0.05) {
+          lastRot = motion.headRotate
+          el.style.setProperty('--head-rot', `${motion.headRotate * 0.5}deg`)
+        }
+        if (Math.abs(motion.headTilt - lastTilt) > 0.05) {
+          lastTilt = motion.headTilt
+          el.style.setProperty('--head-nod', `${motion.headTilt * 0.4}px`)
+        }
+        if (Math.abs(depthX - lastPx) > 0.15 || Math.abs(depthY - lastPy) > 0.15) {
+          lastPx = depthX
+          lastPy = depthY
+          el.style.setProperty('--depth-x', `${depthX}px`)
+          el.style.setProperty('--depth-y', `${depthY}px`)
+        }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      running = false
+      cancelAnimationFrame(raf)
+    }
+  }, [compact, compactActive])
+
   if (compact) {
-    const breath = 1 + motion.breath * 0.006
-    const depthX = parallax.x * 2
-    const depthY = parallax.y * 1.5
     return (
       <div
+        ref={compactRootRef}
         className={`living-portrait is-compact theme-${theme} ${
           frames.isNightOutfit ? 'is-night-outfit' : ''
         }`}
@@ -60,12 +122,12 @@ export function LivingPortrait({ portrait: p, compact }: Props) {
         aria-label={`${p.name}, ${p.title}`}
         style={
           {
-            '--breath': breath,
-            '--depth-x': `${depthX}px`,
-            '--depth-y': `${depthY}px`,
-            '--blink': motion.blink,
-            '--head-rot': `${motion.headRotate * 0.5}deg`,
-            '--head-nod': `${motion.headTilt * 0.4}px`,
+            '--breath': 1,
+            '--depth-x': '0px',
+            '--depth-y': '0px',
+            '--blink': 0,
+            '--head-rot': '0deg',
+            '--head-nod': '0px',
           } as CSSProperties
         }
       >
@@ -96,7 +158,7 @@ export function LivingPortrait({ portrait: p, compact }: Props) {
   return (
     <div
       className={`living-portrait theme-${theme} ${
-        motion.acknowledging ? 'is-acknowledging' : ''
+        acknowledging ? 'is-acknowledging' : ''
       } ${frames.isNightOutfit ? 'is-night-outfit' : ''}`}
       role="img"
       aria-label={`${p.name}, ${p.title}`}

@@ -4,6 +4,9 @@ import { useAppStore } from '../store/useAppStore'
 /**
  * Cheap 3D feel: device orientation when available, else slow drift.
  * Disabled on low performance / reduced motion.
+ *
+ * Deadbands store writes so sensor noise / ambient drift does not
+ * re-render frame chrome every animation frame (major mobile flicker source).
  */
 export function useParallax() {
   const performanceMode = useAppStore((s) => s.performanceMode)
@@ -22,7 +25,20 @@ export function useParallax() {
     let targetY = 0
     let curX = 0
     let curY = 0
+    let publishedX = 0
+    let publishedY = 0
     const start = performance.now()
+
+    /** Only push to the store when the value meaningfully changed. */
+    const publish = (x: number, y: number) => {
+      const dx = x - publishedX
+      const dy = y - publishedY
+      // ~0.012 in normalized space ≈ 1–2 CSS px of shadow shift — ignore below that
+      if (dx * dx + dy * dy < 0.00014) return
+      publishedX = x
+      publishedY = y
+      setParallax(x, y)
+    }
 
     const onOrient = (e: DeviceOrientationEvent) => {
       if (e.gamma == null || e.beta == null) return
@@ -39,10 +55,11 @@ export function useParallax() {
       const timeSinceInteraction = Date.now() - store.lastInteractionAt
 
       if (useSensor) {
-        const k = 0.04
+        // Heavier low-pass on sensor to kill high-frequency hand / table noise
+        const k = 0.028
         curX += (targetX - curX) * k
         curY += (targetY - curY) * k
-        setParallax(curX, curY)
+        publish(curX, curY)
       } else if (timeSinceInteraction > 4000 && !store.idle) {
         // Only apply ambient drift when user has been inactive for >4s
         const t = (now - start) / 1000
@@ -51,7 +68,7 @@ export function useParallax() {
         const k = 0.02
         curX += (targetX - curX) * k
         curY += (targetY - curY) * k
-        setParallax(curX, curY)
+        publish(curX, curY)
       }
       raf = requestAnimationFrame(tick)
     }

@@ -161,7 +161,11 @@ export const useAppStore = create<AppStore>()(
         }),
       showToast: (toast) => set({ toast }),
       clearToast: () => set({ toast: null }),
-      setParallax: (x, y) => set({ parallax: { x, y } }),
+      setParallax: (x, y) => {
+        const prev = get().parallax
+        if (Math.abs(prev.x - x) < 0.004 && Math.abs(prev.y - y) < 0.004) return
+        set({ parallax: { x, y } })
+      },
       setMotion: (partial) =>
         set({ motion: { ...get().motion, ...partial } }),
       setFrameLife: (partial) =>
