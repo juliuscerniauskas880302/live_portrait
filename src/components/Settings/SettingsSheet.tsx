@@ -36,6 +36,8 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
   const setShowNameplate = useAppStore((s) => s.setShowNameplate)
   const surpriseEnabled = useAppStore((s) => s.surpriseEnabled)
   const setSurpriseEnabled = useAppStore((s) => s.setSurpriseEnabled)
+  const thunderstormEnabled = useAppStore((s) => s.thunderstormEnabled)
+  const setThunderstormEnabled = useAppStore((s) => s.setThunderstormEnabled)
   const autoRotateSec = useAppStore((s) => s.autoRotateSec)
   const setAutoRotateSec = useAppStore((s) => s.setAutoRotateSec)
   const currentPortraitId = useAppStore((s) => s.currentPortraitId)
@@ -229,10 +231,17 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
                 onChange={(e) => setSurpriseEnabled(e.target.checked)}
               />
             </label>
+            <label className="toggle-row">
+              <span>Rain & Thunderstorm</span>
+              <input
+                type="checkbox"
+                checked={thunderstormEnabled}
+                onChange={(e) => setThunderstormEnabled(e.target.checked)}
+              />
+            </label>
             <p className="settings-help">
               Night mode: some portraits change into salon night attire.
-              Surprises include corridor footsteps, creaks, whispers, candle
-              flares, and rare blackouts (needs sound on for full effect).
+              Rain & thunderstorm adds window rain streaks, wind howling, and lightning flashes.
             </p>
           </Section>
 

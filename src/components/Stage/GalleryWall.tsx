@@ -2,12 +2,13 @@ import { PLAYLIST, getPortrait } from '../../data/portraits'
 import { LivingPortrait } from '../portraits/LivingPortrait'
 import { useAppStore } from '../../store/useAppStore'
 import type { PortraitId } from '../../types/portrait'
+import { audioEngine } from '../../engine/audioEngine'
+import { motionDirector } from '../../engine/motionDirector'
 
 export function GalleryWall() {
   const current = useAppStore((s) => s.currentPortraitId)
   const setPortrait = useAppStore((s) => s.setPortrait)
   const theme = useAppStore((s) => s.resolvedTheme)
-  const acknowledge = useAppStore((s) => s.acknowledge)
   const touch = useAppStore((s) => s.touch)
 
   const onPick = (id: PortraitId, e: React.MouseEvent | React.PointerEvent) => {
@@ -15,11 +16,11 @@ export function GalleryWall() {
     e.preventDefault()
     touch()
     setPortrait(id)
+    void audioEngine.playSfx('footsteps-soft', { gain: 0.28 })
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const x = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1
     const y = ((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1
-    // Full acknowledge so gallery taps also blink / nod
-    acknowledge({ x: x * 0.45, y: y * 0.35 })
+    motionDirector.glanceTo(x * 0.55, y * 0.4)
   }
 
   return (

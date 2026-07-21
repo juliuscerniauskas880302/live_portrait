@@ -35,15 +35,24 @@ export function useParallax() {
     window.addEventListener('deviceorientation', onOrient)
 
     const tick = (now: number) => {
-      if (!useSensor) {
+      const store = useAppStore.getState()
+      const timeSinceInteraction = Date.now() - store.lastInteractionAt
+
+      if (useSensor) {
+        const k = 0.04
+        curX += (targetX - curX) * k
+        curY += (targetY - curY) * k
+        setParallax(curX, curY)
+      } else if (timeSinceInteraction > 4000 && !store.idle) {
+        // Only apply ambient drift when user has been inactive for >4s
         const t = (now - start) / 1000
         targetX = Math.sin(t / 18) * 0.35
         targetY = Math.cos(t / 23) * 0.22
+        const k = 0.02
+        curX += (targetX - curX) * k
+        curY += (targetY - curY) * k
+        setParallax(curX, curY)
       }
-      const k = 0.04
-      curX += (targetX - curX) * k
-      curY += (targetY - curY) * k
-      setParallax(curX, curY)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)

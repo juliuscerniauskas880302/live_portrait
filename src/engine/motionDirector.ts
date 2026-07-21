@@ -209,10 +209,13 @@ export class MotionDirector {
       this.nextMouthAt = now + 90_000
       return
     }
+    const store = useAppStore.getState()
+    const isSeductive = store.currentPortraitId ? getPortrait(store.currentPortraitId)?.tone === 'seductive' : false
     const scale = intensityScale(this.lastOpts.intensity, false)
     const idleMul = this.lastOpts.idle ? 1.5 : 1
+    const baseMult = isSeductive ? 0.55 : 1.0
     this.nextMouthAt =
-      now + (rand(12_000, 28_000) * idleMul) / Math.max(0.5, scale)
+      now + (rand(8_000, 18_000) * idleMul * baseMult) / Math.max(0.5, scale)
   }
 
   private scheduleSmile(now: number) {
@@ -220,10 +223,13 @@ export class MotionDirector {
       this.nextSmileAt = now + 120_000
       return
     }
+    const store = useAppStore.getState()
+    const isSeductive = store.currentPortraitId ? getPortrait(store.currentPortraitId)?.tone === 'seductive' : false
     const scale = intensityScale(this.lastOpts.intensity, false)
     const idleMul = this.lastOpts.idle ? 1.6 : 1
+    const baseMult = isSeductive ? 0.45 : 1.0
     this.nextSmileAt =
-      now + (rand(25_000, 70_000) * idleMul) / Math.max(0.5, scale)
+      now + (rand(12_000, 32_000) * idleMul * baseMult) / Math.max(0.5, scale)
   }
 
   private applyMoment(m: MicroMoment, now: number) {
@@ -363,6 +369,16 @@ export class MotionDirector {
     this.breathBoost *= 0.985
     const breath = Math.min(1, breathBase + this.breathBoost * 0.35)
 
+    // Breath-synchronized soft cloth rustle at peak inspiration
+    if (
+      breath > 0.94 &&
+      this.lastOpts.performanceMode === 'high' &&
+      useAppStore.getState().audioEnabled &&
+      Math.random() < 0.008
+    ) {
+      void audioEngine.playSoftEvent('cloth')
+    }
+
     const headDrift =
       scale <= 0 ? 0 : Math.sin(t * ((Math.PI * 2) / 11.3)) * 2.2 * headAmp
     const headTiltDrift =
@@ -487,11 +503,16 @@ export class MotionDirector {
           tilt: store.motion.gaze.y * 2.5 * Math.max(0.4, headAmp),
         }
       } else {
+        const px = store.parallax.x * 0.45
+        const py = store.parallax.y * 0.35
         this.gazeTarget = {
-          x: this.baseGaze.x + gazeDriftX,
-          y: this.baseGaze.y + gazeDriftY,
+          x: this.baseGaze.x + gazeDriftX + px,
+          y: this.baseGaze.y + gazeDriftY + py,
         }
-        this.headTarget = { rotate: headDrift, tilt: headTiltDrift }
+        this.headTarget = {
+          rotate: headDrift + px * 3.5,
+          tilt: headTiltDrift + py * 2.0,
+        }
       }
     }
 

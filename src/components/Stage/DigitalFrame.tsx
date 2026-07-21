@@ -5,9 +5,10 @@ import { useAppStore } from '../../store/useAppStore'
 interface Props {
   portrait: PortraitDef
   children: ReactNode
+  onOpenLore?: () => void
 }
 
-export function DigitalFrame({ portrait, children }: Props) {
+export function DigitalFrame({ portrait, children, onOpenLore }: Props) {
   const showFrame = useAppStore((s) => s.showFrame)
   const showNameplate = useAppStore((s) => s.showNameplate)
   const layout = useAppStore((s) => s.layout)
@@ -53,6 +54,11 @@ export function DigitalFrame({ portrait, children }: Props) {
             className={`nameplate ${idle ? 'is-faded' : ''} ${
               frameLife.nameplateGlow > 0.3 || acknowledging ? 'is-glowing' : ''
             }`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenLore?.()
+            }}
+            title="Click to reveal lore & secrets"
             style={{
               opacity: idle
                 ? 0.22 + frameLife.nameplateGlow * 0.6
@@ -63,11 +69,12 @@ export function DigitalFrame({ portrait, children }: Props) {
                       0.25 + frameLife.nameplateGlow * 0.45
                     })`
                   : undefined,
+              cursor: 'pointer',
             }}
           >
             <span className="nameplate-name">{portrait.name}</span>
             <span className="nameplate-title">{portrait.title}</span>
-            <span className="nameplate-era">{portrait.era}</span>
+            <span className="nameplate-era">{portrait.era} 📜</span>
           </div>
         )}
       </div>

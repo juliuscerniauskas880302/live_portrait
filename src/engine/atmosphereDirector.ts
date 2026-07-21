@@ -22,6 +22,7 @@ class AtmosphereDirector {
       nameplateGlow: 0,
       knock: false,
       specularBoost: 0,
+      lightning: 0,
     })
   }
 
@@ -30,8 +31,8 @@ class AtmosphereDirector {
     if (!this.running) return
     const state = useAppStore.getState()
     const idleMul = state.idle ? 1.5 : 1
-    // 50s–2.5min between frame events
-    const delay = (50_000 + Math.random() * 100_000) * idleMul
+    // 35s–100s between atmospheric hall events
+    const delay = (35_000 + Math.random() * 65_000) * idleMul
     this.timer = window.setTimeout(() => {
       void this.fire()
       this.schedule()
@@ -42,21 +43,36 @@ class AtmosphereDirector {
     const state = useAppStore.getState()
     if (state.reducedMotion || state.settingsOpen) return
     if (!state.surpriseEnabled && Math.random() > 0.35) return
-    if (Date.now() - state.lastInteractionAt < 15_000) return
 
     const roll = Math.random()
-    if (roll < 0.4) {
+    if (roll < 0.35) {
       // Nameplate whisper-glow
       useAppStore.getState().setFrameLife({ nameplateGlow: 1 })
       window.setTimeout(() => {
         useAppStore.getState().setFrameLife({ nameplateGlow: 0 })
       }, 2200)
-    } else if (roll < 0.7) {
+    } else if (roll < 0.65) {
       // Gold specular crawl boost
       useAppStore.getState().setFrameLife({ specularBoost: 1 })
       window.setTimeout(() => {
         useAppStore.getState().setFrameLife({ specularBoost: 0 })
       }, 2800)
+    } else if (roll < 0.85 && state.thunderstormEnabled) {
+      // Distant Thunder & Lightning Flash
+      useAppStore.getState().setFrameLife({ lightning: 1 })
+      if (state.audioEnabled) {
+        void audioEngine.playSfx('wind-gust', { gain: 0.22, rate: 0.85 })
+      }
+      // Strobe flash
+      window.setTimeout(() => {
+        useAppStore.getState().setFrameLife({ lightning: 0.3 })
+      }, 120)
+      window.setTimeout(() => {
+        useAppStore.getState().setFrameLife({ lightning: 0.85 })
+      }, 240)
+      window.setTimeout(() => {
+        useAppStore.getState().setFrameLife({ lightning: 0 })
+      }, 650)
     } else {
       // Frame knock
       useAppStore.getState().setFrameLife({ knock: true, specularBoost: 0.5 })

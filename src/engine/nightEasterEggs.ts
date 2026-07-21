@@ -114,7 +114,15 @@ class NightEasterEggDirector {
 
     switch (kind) {
       case 'steps-pass':
-        await audioEngine.playEasterEgg('steps-pass')
+        void audioEngine.playEasterEgg('steps-pass')
+        // Portrait head & eyes track hallway passerby walking left to right
+        motionDirector.glanceTo(-0.75, 0.05)
+        window.setTimeout(() => motionDirector.glanceTo(0.0, 0.02), 1600)
+        window.setTimeout(() => motionDirector.glanceTo(0.75, 0.05), 3100)
+        window.setTimeout(() => {
+          motionDirector.forceBlink()
+          motionDirector.glanceTo(0.0, 0.0)
+        }, 4400)
         break
       case 'creak':
         await audioEngine.playEasterEgg('creak')

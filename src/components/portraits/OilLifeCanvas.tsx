@@ -116,6 +116,24 @@ export function OilLifeCanvas({
       const isNight = themeRef.current === 'night'
       const px = parallaxRef.current.x
       const py = parallaxRef.current.y
+      // Organic high-frequency candle flame flicker
+      const flicker =
+        0.82 + Math.sin(t * 9.1) * 0.12 + Math.cos(t * 15.3) * 0.08 + Math.sin(t * 27.7) * 0.05
+
+      // Prominent Candle Flame Light & Shadow Projection
+      const candleX = w * (0.82 + Math.sin(t * 3.8) * 0.04 + px * 0.05)
+      const candleY = h * (0.75 + Math.cos(t * 4.9) * 0.03 + py * 0.04)
+      
+      ctx.globalCompositeOperation = 'screen'
+      const cg = ctx.createRadialGradient(candleX, candleY, w * 0.03, candleX, candleY, w * 0.7)
+      cg.addColorStop(0, `rgba(255, 185, 80, ${0.32 * flicker * (1 - blink * 0.15)})`)
+      cg.addColorStop(0.35, `rgba(255, 120, 30, ${0.16 * flicker})`)
+      cg.addColorStop(0.7, `rgba(180, 70, 15, ${0.06 * flicker})`)
+      cg.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = cg
+      ctx.fillRect(0, 0, w, h)
+      ctx.globalCompositeOperation = 'source-over'
+
       const lx = isNight
         ? w * (0.72 + Math.sin(t * 0.7) * 0.02 + px * 0.03)
         : w * (0.28 + Math.sin(t * 0.35) * 0.015 + px * 0.02)
@@ -125,18 +143,16 @@ export function OilLifeCanvas({
       const radius = isNight ? w * 0.55 : w * 0.7
       const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, radius)
       if (isNight) {
-        const flicker =
-          0.85 + Math.sin(t * 5.1) * 0.06 + Math.sin(t * 9.3) * 0.03
         g.addColorStop(
           0,
-          `rgba(255, 150, 50, ${0.14 * flicker * (1 - blink * 0.15)})`,
+          `rgba(255, 150, 50, ${0.18 * flicker * (1 - blink * 0.15)})`,
         )
-        g.addColorStop(0.45, `rgba(255, 100, 30, ${0.06 * flicker})`)
+        g.addColorStop(0.45, `rgba(255, 100, 30, ${0.08 * flicker})`)
         g.addColorStop(1, 'rgba(0,0,0,0)')
         ctx.globalCompositeOperation = 'screen'
       } else {
-        g.addColorStop(0, 'rgba(255, 245, 210, 0.12)')
-        g.addColorStop(0.5, 'rgba(255, 230, 180, 0.04)')
+        g.addColorStop(0, 'rgba(255, 245, 210, 0.16)')
+        g.addColorStop(0.5, 'rgba(255, 230, 180, 0.06)')
         g.addColorStop(1, 'rgba(0,0,0,0)')
         ctx.globalCompositeOperation = 'soft-light'
       }
@@ -167,16 +183,18 @@ export function OilLifeCanvas({
 
       const breath = m.breath * 0.014 * idleMul
       const scale = 1.06 + breath
+
+      // Prominent Watchful Pointer Movement Tracking
       const swayX =
         Math.sin(t * ((Math.PI * 2) / 11.3)) * 1.8 * idleMul +
-        p.x * (perf === 'low' ? 2 : 7)
+        p.x * (w * (perf === 'low' ? 0.02 : 0.045))
       const swayY =
         Math.cos(t * ((Math.PI * 2) / 13.7)) * 1.2 * idleMul +
-        p.y * (perf === 'low' ? 1.5 : 4.5)
+        p.y * (h * (perf === 'low' ? 0.015 : 0.03))
       const shimmerX = Math.sin(t * 1.7) * 0.35 * idleMul
       const shimmerY = Math.cos(t * 1.3) * 0.25 * idleMul
-      const rot = (m.headRotate * Math.PI) / 180
-      const tilt = (m.headTilt * Math.PI) / 180
+      const rot = (m.headRotate * Math.PI) / 180 + p.x * 0.035
+      const tilt = (m.headTilt * Math.PI) / 180 + p.y * 0.025
 
       ctx.fillStyle = '#120e0a'
       ctx.fillRect(0, 0, w, h)
@@ -244,21 +262,36 @@ export function OilLifeCanvas({
         ctx.globalCompositeOperation = 'source-over'
       }
 
-      // Drifting eye catchlights (follow gaze slightly)
+      // Watchful 2.5D Eye Iris & Catchlight Tracking
       if (perf !== 'low' && blinkW < 0.4) {
-        const eyeY = h * (0.355 + m.gaze.y * 0.02)
-        const leftX = w * (0.42 + m.gaze.x * 0.025)
-        const rightX = w * (0.58 + m.gaze.x * 0.025)
-        const spark = 0.35 + Math.sin(t * 1.9) * 0.08 + bright * 0.25
+        const eyeY = h * (0.355 + m.gaze.y * 0.035 + p.y * 0.025)
+        const leftX = w * (0.42 + m.gaze.x * 0.035 + p.x * 0.03)
+        const rightX = w * (0.58 + m.gaze.x * 0.035 + p.x * 0.03)
+        const spark = 0.55 + Math.sin(t * 2.1) * 0.08 + bright * 0.25
         for (const ex of [leftX, rightX]) {
-          const sg = ctx.createRadialGradient(ex, eyeY, 0, ex, eyeY, w * 0.018)
-          sg.addColorStop(0, `rgba(255, 255, 250, ${spark})`)
+          const sg = ctx.createRadialGradient(ex, eyeY, 0, ex, eyeY, w * 0.022)
+          sg.addColorStop(0, `rgba(255, 255, 245, ${spark})`)
+          sg.addColorStop(0.35, `rgba(255, 235, 190, ${spark * 0.5})`)
           sg.addColorStop(1, 'rgba(255,255,255,0)')
           ctx.fillStyle = sg
           ctx.beginPath()
-          ctx.arc(ex, eyeY, w * 0.018, 0, Math.PI * 2)
+          ctx.arc(ex, eyeY, w * 0.022, 0, Math.PI * 2)
           ctx.fill()
         }
+      }
+
+      // Interactive Oil Varnish Impasto Specular Glint Pass
+      if (perf !== 'low') {
+        const specX = w * (0.5 + p.x * 0.42)
+        const specY = h * (0.38 + p.y * 0.38)
+        const sg = ctx.createRadialGradient(specX, specY, w * 0.04, specX, specY, w * 0.5)
+        sg.addColorStop(0, 'rgba(255, 248, 230, 0.22)')
+        sg.addColorStop(0.45, 'rgba(255, 235, 200, 0.07)')
+        sg.addColorStop(1, 'rgba(0,0,0,0)')
+        ctx.globalCompositeOperation = 'soft-light'
+        ctx.fillStyle = sg
+        ctx.fillRect(0, 0, w, h)
+        ctx.globalCompositeOperation = 'source-over'
       }
 
       // Oil shimmer ridge (high only) — slow specular band across paint

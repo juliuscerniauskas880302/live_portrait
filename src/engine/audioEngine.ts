@@ -4,6 +4,8 @@
  * Unlock requires a user gesture (browser autoplay policy).
  */
 
+import type { PortraitDef } from '../types/portrait'
+
 export type AudioTheme = 'day' | 'night'
 
 export type SfxKind =
@@ -344,6 +346,103 @@ class AudioEngine {
         }
         this.scheduleThemeExtras()
       }, delay)
+    }
+  }
+
+  async playCharacterWhisper(portrait: PortraitDef) {
+    if (!this.enabled || !this.unlocked) await this.unlock()
+
+    const id = portrait.id
+    const tone = portrait.tone
+
+    switch (id) {
+      case 'astronomer':
+        void this.playSfx('chime', { gain: 0.35, rate: 0.75 })
+        void this.playSfx('whisper', { gain: 0.2, rate: 0.85 })
+        break
+      case 'alchemist':
+        void this.playSfx('candle', { gain: 0.3, rate: 1.15 })
+        void this.playSfx('chime', { gain: 0.25, rate: 0.95 })
+        break
+      case 'scholar':
+        void this.playSfx('cloth', { gain: 0.3, rate: 0.85 })
+        void this.playSfx('sigh', { gain: 0.25, rate: 0.78 })
+        break
+      case 'enchantress':
+        void this.playSfx('chime', { gain: 0.38, rate: 1.35 })
+        void this.playSfx('whisper', { gain: 0.18, rate: 1.15 })
+        break
+      case 'knight':
+        void this.playSfx('footsteps-soft', { gain: 0.35, rate: 0.85 })
+        void this.playSfx('chime', { gain: 0.2, rate: 0.7 })
+        break
+      case 'ravenkeeper':
+        void this.playSfx('wind-gust', { gain: 0.28, rate: 0.88 })
+        void this.playSfx('whisper', { gain: 0.22, rate: 0.92 })
+        break
+      case 'baron':
+        void this.playSfx('horror', { gain: 0.32, rate: 0.62 })
+        void this.playSfx('whisper', { gain: 0.25, rate: 0.7 })
+        break
+      case 'nightshade':
+        void this.playSfx('whoosh', { gain: 0.3, rate: 0.75 })
+        void this.playSfx('sigh', { gain: 0.25, rate: 0.72 })
+        break
+      case 'hollow':
+        void this.playSfx('creak', { gain: 0.35, rate: 0.65 })
+        void this.playSfx('whisper', { gain: 0.25, rate: 0.65 })
+        break
+      case 'whisperer':
+        void this.playSfx('whisper', { gain: 0.28, rate: 0.78, pan: -0.4 })
+        void this.playSfx('whisper', { gain: 0.25, rate: 1.25, pan: 0.4 })
+        break
+      case 'seraphina':
+        void this.playSfx('cloth', { gain: 0.3, rate: 1.05 })
+        void this.playSfx('chime', { gain: 0.25, rate: 1.18 })
+        break
+      case 'camille':
+        void this.playSfx('sigh', { gain: 0.28, rate: 1.08 })
+        void this.playSfx('candle', { gain: 0.2, rate: 0.9 })
+        break
+      case 'thalia':
+        void this.playSfx('cloth', { gain: 0.32, rate: 1.15 })
+        void this.playSfx('chime', { gain: 0.22, rate: 1.25 })
+        break
+      case 'vespera':
+        void this.playSfx('chime', { gain: 0.3, rate: 0.92 })
+        void this.playSfx('cloth', { gain: 0.25, rate: 0.95 })
+        break
+      case 'rouge':
+        void this.playSfx('cloth', { gain: 0.3, rate: 1.22 })
+        void this.playSfx('sigh', { gain: 0.25, rate: 1.12 })
+        break
+      case 'isolde':
+        void this.playSfx('candle', { gain: 0.28, rate: 1.0 })
+        void this.playSfx('whisper', { gain: 0.22, rate: 0.95 })
+        break
+      case 'celestine':
+        void this.playSfx('chime', { gain: 0.38, rate: 1.45 })
+        break
+      case 'briarwyn':
+        void this.playSfx('cloth', { gain: 0.3, rate: 0.88 })
+        void this.playSfx('chime', { gain: 0.25, rate: 0.85 })
+        break
+      case 'nymeris':
+        void this.playSfx('wind-gust', { gain: 0.25, rate: 1.15 })
+        void this.playSfx('chime', { gain: 0.25, rate: 1.25 })
+        break
+      case 'ashwick':
+        void this.playSfx('sigh', { gain: 0.28, rate: 0.95 })
+        void this.playSfx('whoosh', { gain: 0.2, rate: 1.1 })
+        break
+      default:
+        if (tone === 'creepy') {
+          void this.playSfx('horror', { gain: 0.3, rate: 0.7 })
+        } else if (tone === 'seductive') {
+          void this.playSfx('cloth', { gain: 0.3, rate: 1.1 })
+        } else {
+          void this.playSfx('chime', { gain: 0.3, rate: 1.0 })
+        }
     }
   }
 

@@ -13,6 +13,7 @@ import { GalleryWall } from './GalleryWall'
 import { SettingsSheet } from '../Settings/SettingsSheet'
 import { Toast } from '../UI/Toast'
 import { FirstRunHint } from '../UI/FirstRunHint'
+import { LoreModal } from '../UI/LoreModal'
 
 export function Stage() {
   const portraitId = useAppStore((s) => s.currentPortraitId)
@@ -22,15 +23,12 @@ export function Stage() {
   const idle = useAppStore((s) => s.idle)
   const phase = useAppStore((s) => s.phase)
   const touch = useAppStore((s) => s.touch)
-  const acknowledge = useAppStore((s) => s.acknowledge)
   const openSettings = useAppStore((s) => s.openSettings)
   const nextPortrait = useAppStore((s) => s.nextPortrait)
-  const prevPortrait = useAppStore((s) => s.prevPortrait)
   const setPhase = useAppStore((s) => s.setPhase)
   const showToast = useAppStore((s) => s.showToast)
   const clearToast = useAppStore((s) => s.clearToast)
   const audioEnabled = useAppStore((s) => s.audioEnabled)
-  const setAudioEnabled = useAppStore((s) => s.setAudioEnabled)
   const volume = useAppStore((s) => s.volume)
   const toast = useAppStore((s) => s.toast)
   const autoRotateSec = useAppStore((s) => s.autoRotateSec)
@@ -44,12 +42,13 @@ export function Stage() {
       : null
   const nightEgg = useNightEasterEggs()
 
-  const lastTap = useRef(0)
+  const lastClickAt = useRef(0)
   const longPressTimer = useRef(0)
   const longPressFired = useRef(false)
   const prevPortraitId = useRef(portraitId)
   const pointerOrigin = useRef<{ x: number; y: number } | null>(null)
   const [tapFlash, setTapFlash] = useState(false)
+  const [loreOpen, setLoreOpen] = useState(false)
 
   useEffect(() => {
     motionDirector.start()
@@ -120,70 +119,40 @@ export function Stage() {
   }, [])
 
   const handleTap = useCallback(
-    (clientX: number, clientY: number, target: HTMLElement) => {
+    (_clientX: number, _clientY: number, _target: HTMLElement) => {
       if (useAppStore.getState().settingsOpen) return
       if (longPressFired.current) return
 
-      // Capture coords before any async work (React event reuse / delayed unlock)
-      const rect = target.getBoundingClientRect()
-      const nx = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1
-      const ny = ((clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1
-
-      // Unlock audio in background — never block the visual reaction
+      lastClickAt.current = Date.now()
+      // Unlock audio in background
       void unlockAudio()
       touch()
       flashTap()
 
-      const now = Date.now()
-      const isDouble = now - lastTap.current < 320
-      lastTap.current = now
-
-      const currentLayout = useAppStore.getState().layout
-
-      // Edge zones: prev / next portrait (only single-portrait layouts)
-      if (nx < -0.72 && currentLayout !== 'gallery') {
-        prevPortrait()
-        showToast('Previous portrait')
-        return
-      }
-      if (nx > 0.72 && currentLayout !== 'gallery') {
-        nextPortrait()
-        showToast('Next portrait')
-        return
-      }
-
-      if (isDouble) {
-        motionDirector.wink()
-        void audioEngine.playSoftEvent('chime')
-        const next = !useAppStore.getState().audioEnabled
-        setAudioEnabled(next)
-        if (next) {
-          void unlockAudio().then(() => audioEngine.setEnabled(true))
-        }
-        showToast(next ? 'Sound on' : 'Sound muted')
-        return
-      }
-
-      // Full acknowledge: blink → gaze → smile → nod
-      acknowledge({ x: nx * 0.55, y: ny * 0.4 })
-      void audioEngine.playSoftEvent(Math.random() < 0.55 ? 'cloth' : 'sigh')
+      // Simple click on canvas → advance to next portrait
+      nextPortrait()
+      showToast('Next portrait')
     },
-    [
-      unlockAudio,
-      touch,
-      flashTap,
-      prevPortrait,
-      nextPortrait,
-      showToast,
-      setAudioEnabled,
-      acknowledge,
-    ],
+    [unlockAudio, touch, flashTap, nextPortrait, showToast],
   )
 
-  // If the event started on the settings sheet, never steal it for canvas gestures
+  // If the event started on settings or nameplate, bypass stage gestures
   const isFromSettings = (target: EventTarget | null) => {
     if (!(target instanceof Element)) return false
     return Boolean(target.closest('.settings-root'))
+  }
+
+  const isFromNameplate = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false
+    return Boolean(target.closest('.nameplate'))
+  }
+
+  const isFromLoreModal = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false
+    return Boolean(
+      target.closest('.lore-modal-backdrop') ||
+        target.closest('.lore-scroll-card'),
+    )
   }
 
   const releaseCapture = (
@@ -200,8 +169,14 @@ export function Stage() {
   }
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Settings is open (or click is inside it) — do not capture / long-press
-    if (settingsOpen || isFromSettings(e.target)) {
+    // Settings, LoreModal, or nameplate click — do not capture / long-press stage
+    if (
+      settingsOpen ||
+      loreOpen ||
+      isFromSettings(e.target) ||
+      isFromLoreModal(e.target) ||
+      isFromNameplate(e.target)
+    ) {
       window.clearTimeout(longPressTimer.current)
       return
     }
@@ -217,7 +192,6 @@ export function Stage() {
     window.clearTimeout(longPressTimer.current)
     longPressTimer.current = window.setTimeout(() => {
       longPressFired.current = true
-      // Release capture so the settings sheet can receive the next taps
       releaseCapture(e.currentTarget, e.pointerId)
       openSettings()
     }, 1100)
@@ -226,6 +200,18 @@ export function Stage() {
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     window.clearTimeout(longPressTimer.current)
     releaseCapture(e.currentTarget, e.pointerId)
+
+    if (loreOpen || isFromLoreModal(e.target)) {
+      longPressFired.current = false
+      pointerOrigin.current = null
+      return
+    }
+
+    if (isFromNameplate(e.target)) {
+      setLoreOpen(true)
+      void audioEngine.playSoftEvent('cloth')
+      return
+    }
 
     if (settingsOpen || isFromSettings(e.target)) {
       longPressFired.current = false
@@ -263,9 +249,15 @@ export function Stage() {
 
   // Mouse/desktop fallback when pointer events are incomplete
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (settingsOpen || isFromSettings(e.target)) return
+    if (
+      settingsOpen ||
+      loreOpen ||
+      isFromSettings(e.target) ||
+      isFromLoreModal(e.target)
+    )
+      return
     // Avoid double-firing after a successful pointerup (within 80ms)
-    if (Date.now() - lastTap.current < 80) return
+    if (Date.now() - lastClickAt.current < 80) return
     if (longPressFired.current) return
     handleTap(e.clientX, e.clientY, e.currentTarget)
   }
@@ -288,6 +280,16 @@ export function Stage() {
       aria-label="Living portrait canvas. Tap to interact, hold for settings."
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
+      onPointerMove={(e) => {
+        if (settingsOpen || isFromSettings(e.target)) return
+        const rect = e.currentTarget.getBoundingClientRect()
+        const nx = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1
+        const ny = ((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1
+        useAppStore.getState().setParallax(
+          Math.max(-1, Math.min(1, nx)),
+          Math.max(-1, Math.min(1, ny)),
+        )
+      }}
       onPointerCancel={onPointerCancel}
       onClick={onClick}
       onContextMenu={(e) => e.preventDefault()}
@@ -295,7 +297,7 @@ export function Stage() {
       {layout === 'gallery' ? (
         <GalleryWall />
       ) : (
-        <DigitalFrame portrait={portrait}>
+        <DigitalFrame portrait={portrait} onOpenLore={() => setLoreOpen(true)}>
           <div className="portrait-transition-stack">
             {outgoing && (
               <div className="portrait-layer is-outgoing" key={`out-${outgoing.id}`}>
@@ -328,6 +330,11 @@ export function Stage() {
 
       <FirstRunHint />
       <Toast />
+      <LoreModal
+        portrait={portrait}
+        open={loreOpen}
+        onClose={() => setLoreOpen(false)}
+      />
       <SettingsSheet onUnlockAudio={unlockAudio} />
     </div>
   )

@@ -35,6 +35,7 @@ const defaultFrameLife: FrameLifeState = {
   nameplateGlow: 0,
   knock: false,
   specularBoost: 0,
+  lightning: 0,
 }
 
 function resolveThemeFromClock(
@@ -66,6 +67,7 @@ export const useAppStore = create<AppStore>()(
       dayStartHour: 7,
       nightStartHour: 20,
       surpriseEnabled: true,
+      thunderstormEnabled: true,
       firstRunDone: false,
       autoRotateSec: 120 as AutoRotateSec,
 
@@ -108,6 +110,8 @@ export const useAppStore = create<AppStore>()(
       setShowFrame: (showFrame) => set({ showFrame }),
       setShowNameplate: (showNameplate) => set({ showNameplate }),
       setSurpriseEnabled: (surpriseEnabled) => set({ surpriseEnabled }),
+      setThunderstormEnabled: (thunderstormEnabled) =>
+        set({ thunderstormEnabled }),
       setAutoRotateSec: (autoRotateSec: AutoRotateSec) =>
         set({ autoRotateSec, rotateNonce: get().rotateNonce + 1 }),
       setResolvedTheme: (resolvedTheme: ResolvedTheme) => set({ resolvedTheme }),
@@ -125,7 +129,7 @@ export const useAppStore = create<AppStore>()(
           if (useAppStore.getState().transitionFromId === from) {
             set({ transitionFromId: null })
           }
-        }, 2000)
+        }, 3500)
       },
       nextPortrait: () => {
         const { playlist, currentPortraitId } = get()

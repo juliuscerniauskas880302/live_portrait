@@ -11,9 +11,11 @@ export type PortraitId =
   | 'knight'
   | 'scholar'
   | 'ravenkeeper'
+  | 'astronomer'
   | 'nightshade'
   | 'hollow'
   | 'whisperer'
+  | 'baron'
   | 'vespera'
   | 'ashwick'
   | 'rouge'
@@ -21,6 +23,9 @@ export type PortraitId =
   | 'celestine'
   | 'briarwyn'
   | 'nymeris'
+  | 'seraphina'
+  | 'camille'
+  | 'thalia'
 
 export type PortraitTone = 'classic' | 'creepy' | 'seductive'
 
@@ -55,6 +60,10 @@ export interface PortraitDef {
   imageNightClosed?: string
   imageNightSmile?: string
   imageNightMouth?: string
+  /** Narrative backstory / lore for storytelling */
+  lore?: string
+  /** Whispered secret quote */
+  quote?: string
 }
 
 export interface GazeTarget {
@@ -85,6 +94,7 @@ export interface FrameLifeState {
   nameplateGlow: number
   knock: boolean
   specularBoost: number
+  lightning: number
 }
 
 export interface AppSettings {
@@ -100,6 +110,7 @@ export interface AppSettings {
   dayStartHour: number
   nightStartHour: number
   surpriseEnabled: boolean
+  thunderstormEnabled: boolean
   firstRunDone: boolean
   /** Portrait auto-advance interval in seconds (0 = off) */
   autoRotateSec: AutoRotateSec
@@ -132,6 +143,7 @@ export interface AppStore extends AppSettings {
   setShowFrame: (on: boolean) => void
   setShowNameplate: (on: boolean) => void
   setSurpriseEnabled: (on: boolean) => void
+  setThunderstormEnabled: (on: boolean) => void
   setAutoRotateSec: (sec: AutoRotateSec) => void
   setResolvedTheme: (t: ResolvedTheme) => void
   setPhase: (p: AppPhase) => void
