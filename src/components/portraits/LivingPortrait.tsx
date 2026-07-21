@@ -108,7 +108,7 @@ export function LivingPortrait({ portrait: p, compact }: Props) {
       />
 
       <OilLifeCanvas
-        key={`${p.id}-${theme}-${frames.isNightOutfit ? 'n' : 'd'}`}
+        key={p.id}
         imageSrc={frames.open}
         closedSrc={frames.closed}
         smileSrc={smileSrc}

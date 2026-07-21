@@ -60,30 +60,50 @@ export function OilLifeCanvas({
       mouthImg.src = mouthSrc
     }
 
+    let openReady = false
+    let closedReady = false
+    let smileReady = false
+    let mouthReady = false
+
+    openImg.onload = () => { openReady = true }
+    closedImg.onload = () => { closedReady = true }
+    if (smileImg) smileImg.onload = () => { smileReady = true }
+    if (mouthImg) mouthImg.onload = () => { mouthReady = true }
+    if (openImg.complete && openImg.naturalWidth > 0) openReady = true
+    if (closedImg.complete && closedImg.naturalWidth > 0) closedReady = true
+    if (smileImg?.complete && smileImg.naturalWidth > 0) smileReady = true
+    if (mouthImg?.complete && mouthImg.naturalWidth > 0) mouthReady = true
+
     let raf = 0
     let running = true
     let w = 0
     let h = 0
     let dpr = 1
     const start = performance.now()
-    let openReady = false
-    let closedReady = false
-    let smileReady = false
-    let mouthReady = false
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
+      const newW = Math.max(1, Math.floor(rect.width))
+      const newH = Math.max(1, Math.floor(rect.height))
       dpr =
         perf === 'high'
           ? Math.min(window.devicePixelRatio || 1, 1.5)
           : perf === 'balanced'
             ? Math.min(window.devicePixelRatio || 1, 1.25)
             : 1
-      w = Math.max(1, Math.floor(rect.width))
-      h = Math.max(1, Math.floor(rect.height))
-      canvas.width = Math.floor(w * dpr)
-      canvas.height = Math.floor(h * dpr)
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const targetW = Math.floor(newW * dpr)
+      const targetH = Math.floor(newH * dpr)
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        w = newW
+        h = newH
+        canvas.width = targetW
+        canvas.height = targetH
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      } else {
+        w = newW
+        h = newH
+      }
     }
 
     const coverDraw = (
