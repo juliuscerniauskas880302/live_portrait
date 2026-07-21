@@ -1,5 +1,9 @@
 import { PLAYLIST, TONE_LABELS, getPortrait } from '../../data/portraits'
 import { useAppStore } from '../../store/useAppStore'
+import {
+  toggleFullscreen,
+  isFullscreenActive,
+} from '../UI/FullscreenToggle'
 import type {
   AutoRotateSec,
   IntensityLevel,
@@ -40,6 +44,7 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
   const setThunderstormEnabled = useAppStore((s) => s.setThunderstormEnabled)
   const autoRotateSec = useAppStore((s) => s.autoRotateSec)
   const setAutoRotateSec = useAppStore((s) => s.setAutoRotateSec)
+  const showToast = useAppStore((s) => s.showToast)
   const currentPortraitId = useAppStore((s) => s.currentPortraitId)
   const setPortrait = useAppStore((s) => s.setPortrait)
   const resolvedTheme = useAppStore((s) => s.resolvedTheme)
@@ -256,6 +261,32 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
               ]}
               onChange={(v) => setPerformanceMode(v as PerformanceMode)}
             />
+            <button
+              type="button"
+              className="settings-fs-btn"
+              onClick={async (e) => {
+                stopCanvasGestures(e)
+                const next = await toggleFullscreen()
+                showToast(next ? 'Fullscreen mode' : 'Exited fullscreen')
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: '12px',
+                padding: '10px 14px',
+                background: 'linear-gradient(135deg, rgba(201, 162, 39, 0.25), rgba(120, 90, 20, 0.4))',
+                border: '1px solid rgba(201, 162, 39, 0.6)',
+                borderRadius: '8px',
+                color: '#f5e0a0',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                textAlign: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+            >
+              {isFullscreenActive() ? '🗗 Exit Fullscreen Mode' : '⛶ Enter Fullscreen Mode (Wall Canvas)'}
+            </button>
             <p className="settings-help">
               Old tablets: choose <strong>Low</strong>. Plug in power, add to Home
               Screen, and enable fullscreen for a true wall canvas.

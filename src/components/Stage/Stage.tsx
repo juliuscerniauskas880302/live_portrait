@@ -14,6 +14,7 @@ import { SettingsSheet } from '../Settings/SettingsSheet'
 import { Toast } from '../UI/Toast'
 import { FirstRunHint } from '../UI/FirstRunHint'
 import { LoreModal } from '../UI/LoreModal'
+import { FullscreenToggle } from '../UI/FullscreenToggle'
 
 export function Stage() {
   const portraitId = useAppStore((s) => s.currentPortraitId)
@@ -330,6 +331,7 @@ export function Stage() {
 
       <FirstRunHint />
       <Toast />
+      <FullscreenToggle />
       <LoreModal
         portrait={portrait}
         open={loreOpen}
