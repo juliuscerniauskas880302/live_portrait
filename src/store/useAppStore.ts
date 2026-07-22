@@ -28,6 +28,7 @@ const defaultMotion: MotionState = {
   wink: false,
   eyeBrighten: 0,
   longStare: 0,
+  pose: 0,
   activeMoment: null,
 }
 
@@ -124,6 +125,7 @@ export const useAppStore = create<AppStore>()(
           currentPortraitId,
           rotateNonce: get().rotateNonce + 1,
           lastInteractionAt: Date.now(),
+          motion: { ...get().motion, pose: 0 },
         })
         window.setTimeout(() => {
           if (useAppStore.getState().transitionFromId === from) {

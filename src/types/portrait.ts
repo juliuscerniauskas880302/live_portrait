@@ -27,6 +27,9 @@ export type PortraitId =
   | 'camille'
   | 'thalia'
   | 'lysandra'
+  | 'ophelia'
+  | 'lucien'
+  | 'morgaine'
 
 export type PortraitTone = 'classic' | 'creepy' | 'seductive'
 
@@ -61,6 +64,11 @@ export interface PortraitDef {
   imageNightClosed?: string
   imageNightSmile?: string
   imageNightMouth?: string
+  /**
+   * Progressive pose frames (e.g. silk drape / hand gesture sequence).
+   * Crossfaded by motion.pose 0→1 during rare reveal moments.
+   */
+  imagePose?: string[]
   /** Narrative backstory / lore for storytelling */
   lore?: string
   /** Whispered secret quote */
@@ -86,6 +94,11 @@ export interface MotionState {
   eyeBrighten: number
   /** Long empty stare intensity 0–1 */
   longStare: number
+  /**
+   * Progressive pose blend 0–1 across imagePose frames
+   * (0 = base open, 1 = final pose).
+   */
+  pose: number
   /** Active micro-moment id if any */
   activeMoment: string | null
 }

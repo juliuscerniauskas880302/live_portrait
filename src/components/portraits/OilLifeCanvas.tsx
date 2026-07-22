@@ -6,12 +6,14 @@ interface Props {
   closedSrc: string
   smileSrc?: string
   mouthSrc?: string
+  /** Progressive pose frames (hand / silk drape sequence) */
+  poseSrcs?: string[]
   active: boolean
 }
 
 /**
  * Canvas life engine: multi-frame oil portrait stack.
- * neutral → smile → mouth → closed (blink), shared head transform.
+ * neutral → pose stack → smile → mouth → closed (blink), shared head transform.
  *
  * High-frequency state (motion / parallax / theme / idle) is read from the
  * store inside rAF — not via React subscriptions — so React does not re-render
@@ -22,6 +24,7 @@ export function OilLifeCanvas({
   closedSrc,
   smileSrc,
   mouthSrc,
+  poseSrcs = [],
   active,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -39,6 +42,7 @@ export function OilLifeCanvas({
     const closedImg = new Image()
     const smileImg = smileSrc ? new Image() : null
     const mouthImg = mouthSrc ? new Image() : null
+    const poseImgs = poseSrcs.map(() => new Image())
     openImg.decoding = 'async'
     closedImg.decoding = 'async'
     openImg.src = imageSrc
@@ -51,6 +55,15 @@ export function OilLifeCanvas({
       mouthImg.decoding = 'async'
       mouthImg.src = mouthSrc
     }
+    const poseReady = poseImgs.map(() => false)
+    poseImgs.forEach((img, i) => {
+      img.decoding = 'async'
+      img.src = poseSrcs[i]
+      img.onload = () => {
+        poseReady[i] = true
+      }
+      if (img.complete && img.naturalWidth > 0) poseReady[i] = true
+    })
 
     let openReady = false
     let closedReady = false
@@ -267,14 +280,40 @@ export function OilLifeCanvas({
       const ox = swayX + shimmerX
       const oy = swayY + shimmerY
 
-      if (openReady) {
+      // Base open + progressive pose stack (motion.pose 0→1)
+      const pose = Math.max(0, Math.min(1, m.pose ?? 0))
+      if (openReady && poseImgs.length === 0) {
         coverDraw(openImg, ox, oy, scale, rot, tilt)
+      } else if (openReady) {
+        // frames: [open, pose1, pose2, ...]
+        const stack: { img: HTMLImageElement; ready: boolean }[] = [
+          { img: openImg, ready: openReady },
+          ...poseImgs.map((img, i) => ({ img, ready: poseReady[i] })),
+        ]
+        const max = Math.max(1, stack.length - 1)
+        const x = pose * max
+        const i0 = Math.max(0, Math.min(max, Math.floor(x)))
+        const i1 = Math.min(max, i0 + 1)
+        const f = x - i0
+        const a = stack[i0]
+        const b = stack[i1]
+        if (a?.ready) coverDraw(a.img, ox, oy, scale, rot, tilt)
+        if (b?.ready && f > 0.01 && i1 !== i0) {
+          ctx.globalAlpha = Math.min(1, f)
+          coverDraw(b.img, ox, oy, scale, rot, tilt)
+          ctx.globalAlpha = 1
+        }
       }
 
+      // Face expressions fade out as pose opens (body gesture takes focus)
+      const faceMul = 1 - pose * 0.85
       const blinkW = m.blink
-      const mouthW = m.mouth * (1 - blinkW)
+      const mouthW = m.mouth * (1 - blinkW) * faceMul
       const smileW =
-        m.expressionSmile * (1 - blinkW) * (1 - Math.min(1, m.mouth) * 0.85)
+        m.expressionSmile *
+        (1 - blinkW) *
+        (1 - Math.min(1, m.mouth) * 0.85) *
+        faceMul
 
       if (smileReady && smileImg && smileW > 0.01) {
         ctx.globalAlpha = Math.min(1, smileW)
@@ -442,7 +481,7 @@ export function OilLifeCanvas({
       if (resizeRaf) cancelAnimationFrame(resizeRaf)
       ro.disconnect()
     }
-  }, [imageSrc, closedSrc, smileSrc, mouthSrc, active, perf])
+  }, [imageSrc, closedSrc, smileSrc, mouthSrc, poseSrcs, active, perf])
 
   return <canvas ref={canvasRef} className="oil-life-canvas" aria-hidden />
 }

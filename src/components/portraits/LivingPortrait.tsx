@@ -19,6 +19,8 @@ function resolveFrames(p: PortraitDef, theme: ResolvedTheme) {
       useNight && p.imageNightClosed ? p.imageNightClosed : p.imageClosed,
     smile: useNight && p.imageNightSmile ? p.imageNightSmile : p.imageSmile,
     mouth: useNight && p.imageNightMouth ? p.imageNightMouth : p.imageMouth,
+    // Pose sequence matches day identity; night uses a separate intimate still
+    pose: useNight ? [] : (p.imagePose ?? []),
     isNightOutfit: useNight,
   }
 }
@@ -175,6 +177,7 @@ export function LivingPortrait({
         closedSrc={frames.closed}
         smileSrc={smileSrc}
         mouthSrc={mouthSrc}
+        poseSrcs={frames.pose}
         active={active}
       />
 

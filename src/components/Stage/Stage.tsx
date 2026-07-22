@@ -241,8 +241,6 @@ export function Stage() {
     handleTap(e.clientX, e.clientY, e.currentTarget)
   }
 
-  const lastPointerAt = useRef(0)
-
   const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     window.clearTimeout(longPressTimer.current)
     pointerOrigin.current = null
@@ -283,19 +281,6 @@ export function Stage() {
       aria-label="Living portrait canvas. Tap to interact, hold for settings."
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerMove={(e) => {
-        if (settingsOpen || isFromSettings(e.target)) return
-        const now = performance.now()
-        if (now - lastPointerAt.current < 14) return
-        lastPointerAt.current = now
-        const rect = e.currentTarget.getBoundingClientRect()
-        const nx = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1
-        const ny = ((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1
-        useAppStore.getState().setParallax(
-          Math.max(-1, Math.min(1, nx)),
-          Math.max(-1, Math.min(1, ny)),
-        )
-      }}
       onPointerCancel={onPointerCancel}
       onClick={onClick}
       onContextMenu={(e) => e.preventDefault()}
