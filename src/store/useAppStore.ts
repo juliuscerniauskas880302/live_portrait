@@ -123,6 +123,8 @@ export const useAppStore = create<AppStore>()(
         set({ portraitEngine, model3dFpsFallback: false }),
       triggerModel3dFpsFallback: () => {
         if (get().model3dFpsFallback) return
+        // Only auto-fallback in Auto mode — never yank the view if user forced 3D
+        if (get().portraitEngine !== 'auto') return
         set({ model3dFpsFallback: true })
         get().showToast('3D struggling — switched to painted view')
       },
