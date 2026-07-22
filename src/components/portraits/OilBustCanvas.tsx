@@ -19,6 +19,7 @@ import {
   type MorphMesh,
   type PortraitPalette,
 } from '../../engine/paintedMaterials'
+import { IdlePoseSystem } from '../../engine/idlePoseSystem'
 import {
   hideNamedMeshes,
   loadPortraitLooks,
@@ -205,6 +206,7 @@ export function OilBustCanvas({
     let mixer: THREE.AnimationMixer | null = null
     let idleAction: THREE.AnimationAction | null = null
     let momentAction: THREE.AnimationAction | null = null
+    let idlePoses: IdlePoseSystem | null = null
     const clips: THREE.AnimationClip[] = []
     const bones: BoneMap = { head: placeholder.head }
     let baseHeadQuat = placeholder.head.quaternion.clone()
@@ -466,6 +468,18 @@ export function OilBustCanvas({
               mixer.update(0.05)
             }
 
+            // Realistic GLBs often have NO clips → T-pose. Drive multi-idle on bones.
+            idlePoses = new IdlePoseSystem(model)
+            // Apply first pose immediately so first frame isn't T-pose
+            idlePoses.update(performance.now(), 0.016, {
+              breath: 0.5,
+              sway: lookSway,
+              skipHead: true,
+            })
+            // Refresh head rest after arm fix (skeleton settled)
+            if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
+            if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
+
             model.updateMatrixWorld(true)
             const box = new THREE.Box3().setFromObject(model)
             if (!box.isEmpty()) {
@@ -486,6 +500,7 @@ export function OilBustCanvas({
               portraitId,
               style: isRealistic ? 'realistic' : 'stylized',
               clips: clips.map((c) => c.name),
+              proceduralIdle: idlePoses?.active ?? false,
               morphs: morphMeshes.length,
               faceCard: Boolean(faceCard),
               sway: lookSway,
@@ -591,6 +606,16 @@ export function OilBustCanvas({
 
       if (mixer) mixer.update(dt)
 
+      // Multi-idle body (arms down, weight shift) with smooth pose crossfades
+      if (idlePoses?.active) {
+        idlePoses.update(performance.now(), dt, {
+          breath: m.breath,
+          sway: lookSway,
+          skipHead: true,
+        })
+      }
+
+      // Head / neck from motion director (on top of rest, after idle body)
       if (bones.head) {
         const yaw = THREE.MathUtils.degToRad(m.headRotate) + m.gaze.x * 0.3
         const pitch = THREE.MathUtils.degToRad(m.headTilt) + m.gaze.y * 0.2
@@ -602,18 +627,21 @@ export function OilBustCanvas({
         const yaw =
           THREE.MathUtils.degToRad(m.headRotate) * 0.3 + m.gaze.x * 0.1
         const pitch = THREE.MathUtils.degToRad(m.headTilt) * 0.3
-        euler.set(pitch, yaw, 0, 'YXZ')
+        // Layer director neck on whatever idle wrote
+        const neckBase = baseNeckQuat
+        euler.set(pitch * 0.5, yaw, 0, 'YXZ')
         quat.setFromEuler(euler)
-        bones.neck.quaternion.copy(baseNeckQuat).multiply(quat)
+        bones.neck.quaternion.copy(neckBase).multiply(quat)
       }
 
-      root.scale.set(1, 1 + m.breath * 0.02, 1)
+      root.scale.set(1, 1 + m.breath * 0.015, 1)
       root.rotation.y =
-        Math.sin(t * 0.28) * 0.12 * lookSway + m.gaze.x * 0.06
+        Math.sin(t * 0.22) * 0.06 * lookSway + m.gaze.x * 0.05
 
-      // Moment → expressive morph boosts (RobotExpressive etc.)
+      // Moment → expressive morphs + idle pose nudge
       if (m.activeMoment && m.activeMoment !== lastMoment) {
         const mid = m.activeMoment
+        idlePoses?.nudgeFromMoment(mid)
         if (
           mid === 'startle' ||
           mid === 'surprise' ||
@@ -634,12 +662,13 @@ export function OilBustCanvas({
 
       if (morphMeshes.length) {
         setMorphGroup(morphMeshes, 'blink', m.blink)
-        setMorphGroup(
-          morphMeshes,
-          'smile',
-          Math.max(m.expressionSmile, m.acknowledging ? 0.35 : 0),
+        // Keep smiles subtle — full morph looks like a cartoon grin
+        const smileAmt = Math.min(
+          0.28,
+          Math.max(m.expressionSmile * 0.28, m.acknowledging ? 0.12 : 0),
         )
-        setMorphGroup(morphMeshes, 'mouth', m.mouth)
+        setMorphGroup(morphMeshes, 'smile', smileAmt)
+        setMorphGroup(morphMeshes, 'mouth', m.mouth * 0.55)
         setMorphGroup(morphMeshes, 'surprised', exprSurprised)
         setMorphGroup(morphMeshes, 'sad', exprSad)
         setMorphGroup(morphMeshes, 'angry', exprAngry)

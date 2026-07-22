@@ -108,6 +108,19 @@ Edit **`public/models/portrait-looks.json`** (no rebuild):
 
 Also: salon **backdrop color** follows `background` / `backgroundNight` from the portrait.
 
+## Procedural multi-idle (no T-pose)
+
+Realistic sample GLBs often have **zero animation clips** and load in T-pose.  
+`IdlePoseSystem` fixes that:
+
+1. Capture rest bone quaternions  
+2. Arms down into a natural rest  
+3. Cycle idle poses: rest → weight-left → weight-right → think → open → shy  
+4. **Smoothstep crossfade** ~1.6–2.8s between poses  
+5. Hold each pose 3–7s; micro-moments nudge related poses  
+
+Clip-based idle still used when the GLB embeds animations.
+
 ## Roadmap
 
 | Phase | Status |
@@ -115,5 +128,6 @@ Also: salon **backdrop color** follows `background` / `backgroundNight` from the
 | 0–3 Sample bodies | Done (legacy) |
 | 4 Realistic textured cast | Done |
 | 5 Palette uniqueness | Done |
-| **6 Identity looks JSON + cameo + backdrop** | **Done** |
-| 7 Unique custom GLB per portrait | Future (drop your own files) |
+| 6 Identity looks JSON + cameo + backdrop | Done |
+| **7 Procedural multi-idle (no T-pose)** | **Done** |
+| 8 Unique custom GLB per portrait | Future |

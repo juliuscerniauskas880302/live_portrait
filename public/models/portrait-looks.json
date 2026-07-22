@@ -2,8 +2,8 @@
   "$comment": "Phase-6 per-portrait 3D look overrides. Keys = portrait id. Omit fields to use defaults from PortraitDef + engine.",
   "defaults": {
     "identityFace": true,
-    "identityFaceOpacity": 0.42,
-    "paletteStrength": 0.72,
+    "identityFaceOpacity": 0.52,
+    "paletteStrength": 0.88,
     "hideGlasses": true,
     "sway": 1
   },

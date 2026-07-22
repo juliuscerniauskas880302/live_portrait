@@ -146,27 +146,27 @@ export function applyPortraitPalette(
 
       switch (role) {
         case 'skin':
-          tintColor(mat.color, palette.skin, s * 0.55)
+          // Stronger skin shift so cast members separate
+          tintColor(mat.color, palette.skin, s * 0.72)
           break
         case 'hair':
-          tintColor(mat.color, palette.hair, s * 0.85)
+          tintColor(mat.color, palette.hair, Math.min(1, s * 0.95))
           break
         case 'outfitTop':
-          tintColor(mat.color, palette.robe, s * 0.8)
-          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.12)
+          tintColor(mat.color, palette.robe, Math.min(1, s * 0.92))
+          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.18)
           break
         case 'outfitBottom':
-          tintColor(mat.color, palette.robeDark ?? palette.robe, s * 0.75)
+          tintColor(mat.color, palette.robeDark ?? palette.robe, Math.min(1, s * 0.88))
           break
         case 'shoes':
-          tintColor(mat.color, palette.robeDark ?? palette.hair, s * 0.65)
+          tintColor(mat.color, palette.robeDark ?? palette.hair, s * 0.75)
           break
         case 'eyes':
-          // subtle iris lean only
-          if (palette.eyeColor) tintColor(mat.color, palette.eyeColor, s * 0.25)
+          if (palette.eyeColor) tintColor(mat.color, palette.eyeColor, s * 0.4)
           break
         default:
-          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.08)
+          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.12)
           break
       }
       mat.needsUpdate = true
