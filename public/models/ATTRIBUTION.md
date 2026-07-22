@@ -1,16 +1,29 @@
-# 3D models (Phase 3 cast)
+# 3D models
 
-| File | Source | License | Used by |
-|------|--------|---------|---------|
-| `Xbot.glb` | [three.js examples](https://threejs.org/examples/) | MIT (three.js samples) | Lord Ashwick |
-| `Soldier.glb` | [three.js examples](https://threejs.org/examples/) (Soldier / Mixamo-style) | MIT (three.js samples) | Sir Aldric Vale (Knight) |
-| `RobotExpressive.glb` | [three.js examples](https://threejs.org/examples/) RobotExpressive | MIT (three.js samples) | Father Hollow |
+## Phase 4 — realistic pre-textured humans (primary cast)
 
-Also:
+Sourced from [met4citizen/TalkingHead](https://github.com/met4citizen/TalkingHead) example avatars (see their README for license notes).
+
+| File | Origin | License notes | Role |
+|------|--------|---------------|------|
+| `realistic/brunette.glb` | Ready Player Me sample | **CC BY-NC 4.0** — free for non-commercial use | Female cast |
+| `realistic/brunette-t.glb` | Ready Player Me sample | **CC BY-NC 4.0** | Female lite / variety |
+| `realistic/avatarsdk.glb` | AvatarSDK sample | Non-commercial sample | Male cast |
+| `realistic/vroid.glb` | VRoid Studio sample | Non-commercial sample | Optional stylized |
+
+**Commercial deployment:** replace these with your own Mixamo / custom / licensed avatars. Do not assume NC samples are OK for a paid product.
+
+## Legacy Phase 0–3 sample bodies (still in repo)
+
+| File | Source | License |
+|------|--------|---------|
+| `Xbot.glb` | three.js examples | MIT |
+| `Soldier.glb` | three.js examples | MIT |
+| `RobotExpressive.glb` | three.js examples | MIT |
+
+## Config
 
 | File | Role |
 |------|------|
-| `clip-map.json` | Runtime motion-cue → clip name preferences |
-| `manifest.json` | Model registry for tooling / docs |
-
-Replace with custom painted Mixamo / Blender GLBs (face morphs + oil albedos) for production likeness.
+| `clip-map.json` | Motion cue → animation clip name preferences |
+| `manifest.json` | Model registry |

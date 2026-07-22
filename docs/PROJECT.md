@@ -71,11 +71,13 @@ Irregular, hold-heavy motion:
 ### 4.2b 3D cast (optional)
 
 - Settings: **Portrait engine** = Auto / Painted / **3D cast**  
-- Free glTF pilots: **Ashwick** (Xbot), **Knight** (Soldier), **Hollow** (RobotExpressive)  
-- Motion director → idle/moment clips, head bones, morphs, painted **face card**  
-- Runtime clip map: `public/models/clip-map.json`; registry: `manifest.json`  
+- **Phase 4:** realistic pre-textured humans (`public/models/realistic/`) with ARKit morphs  
+- Male body: AvatarSDK sample; female: Ready Player Me brunette samples  
+- Motion director → morph blink/smile/mouth/gaze + head bones (clips if present)  
+- Runtime clip map: `public/models/clip-map.json`; licenses: `models/ATTRIBUTION.md`  
 - Low-FPS session auto-fallback to painted 2D (Auto mode)  
 - See `docs/3D_PORTRAITS.md`  
+
 
 
 

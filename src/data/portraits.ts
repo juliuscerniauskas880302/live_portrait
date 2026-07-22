@@ -1,5 +1,23 @@
 import type { PortraitDef, PortraitId, PortraitTone } from '../types/portrait'
 
+/** Phase-4: shared realistic pre-textured humans (ARKit morphs, baked PBR). */
+const REALISTIC_MALE = {
+  model3d: '/models/realistic/avatarsdk.glb',
+  model3dStyle: 'realistic' as const,
+  model3dFaceCard: false as const,
+}
+const REALISTIC_FEMALE = {
+  model3d: '/models/realistic/brunette.glb',
+  model3dStyle: 'realistic' as const,
+  model3dFaceCard: false as const,
+}
+/** Lighter female variant (same rig family). */
+const REALISTIC_FEMALE_LITE = {
+  model3d: '/models/realistic/brunette-t.glb',
+  model3dStyle: 'realistic' as const,
+  model3dFaceCard: false as const,
+}
+
 export const PORTRAITS: Record<PortraitId, PortraitDef> = {
   alchemist: {
     id: 'alchemist',
@@ -20,6 +38,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Listen closely... the gold in this frame wasn\'t painted, it was transmuted."',
     image: '/portraits/alchemist.jpg',
     imageClosed: '/portraits/alchemist-closed.jpg',
+    ...REALISTIC_MALE,
   },
   enchantress: {
     id: 'enchantress',
@@ -40,6 +59,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Do not fear the quiet, traveler. The moat remembers every secret ever dropped into its depths."',
     image: '/portraits/enchantress.jpg',
     imageClosed: '/portraits/enchantress-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   knight: {
     id: 'knight',
@@ -60,15 +80,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Honor is not bound by blood or steel, but by the promises we keep when no one is watching."',
     image: '/portraits/knight.jpg',
     imageClosed: '/portraits/knight-closed.jpg',
-    // Phase-3: free Mixamo soldier body for guard presence
-    model3d: '/models/Soldier.glb',
-    model3dClipMap: {
-      idle: ['Idle'],
-      acknowledge: ['Idle', 'Walk'],
-      startle: ['Run', 'Walk'],
-      pride: ['Idle'],
-      bored: ['Idle', 'TPose'],
-    },
+    ...REALISTIC_MALE,
   },
   scholar: {
     id: 'scholar',
@@ -89,6 +101,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Every book in this library holds a soul... some of them are still trying to escape."',
     image: '/portraits/scholar.jpg',
     imageClosed: '/portraits/scholar-closed.jpg',
+    ...REALISTIC_MALE,
   },
   ravenkeeper: {
     id: 'ravenkeeper',
@@ -109,6 +122,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"The ravens bring news from the high towers. Shall I tell you what they saw tonight?"',
     image: '/portraits/ravenkeeper.jpg',
     imageClosed: '/portraits/ravenkeeper-closed.jpg',
+    ...REALISTIC_FEMALE_LITE,
   },
   astronomer: {
     id: 'astronomer',
@@ -129,6 +143,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Look up at the velvet sky... the stars move in rhythm with our very thoughts."',
     image: '/portraits/astronomer.jpg',
     imageClosed: '/portraits/astronomer-closed.jpg',
+    ...REALISTIC_MALE,
   },
 
   // ── Creepy / scary ──────────────────────────────────────────────
@@ -151,6 +166,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"A single drop of nightshade in sweet wine... and all your troubles drift away forever."',
     image: '/portraits/nightshade.jpg',
     imageClosed: '/portraits/nightshade-closed.jpg',
+    ...REALISTIC_FEMALE_LITE,
   },
   hollow: {
     id: 'hollow',
@@ -171,21 +187,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"We are all empty vessels waiting to be filled... some with light, others with shadow."',
     image: '/portraits/hollow.jpg',
     imageClosed: '/portraits/hollow-closed.jpg',
-    // Phase-3: expressive robot with face morphs (creepy wrong-body energy)
-    model3d: '/models/RobotExpressive.glb',
-    model3dClipMap: {
-      idle: ['Idle'],
-      acknowledge: ['Yes', 'ThumbsUp', 'Wave'],
-      wink: ['Wave', 'Yes'],
-      'glance-left': ['No'],
-      'glance-right': ['No'],
-      startle: ['Jump', 'Surprised', 'Punch'],
-      pride: ['ThumbsUp', 'Yes'],
-      bored: ['Sad', 'Sitting'],
-      invitation: ['Wave', 'Yes'],
-      'soft-laugh': ['Yes', 'ThumbsUp'],
-      'silk-reveal': ['Dance', 'Wave'],
-    },
+    ...REALISTIC_MALE,
   },
   whisperer: {
     id: 'whisperer',
@@ -206,6 +208,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Lean closer... I have a secret about the person standing right behind you."',
     image: '/portraits/whisperer.jpg',
     imageClosed: '/portraits/whisperer-closed.jpg',
+    ...REALISTIC_MALE,
   },
   baron: {
     id: 'baron',
@@ -226,6 +229,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"The crypt gates lock from the inside... as I learned two centuries ago."',
     image: '/portraits/baron.jpg',
     imageClosed: '/portraits/baron-closed.jpg',
+    ...REALISTIC_MALE,
   },
 
   // ── Seductive / naughty (tasteful salon style) ───────────────────
@@ -252,6 +256,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/vespera-mouth.jpg',
     imageNight: '/portraits/vespera-night.jpg',
     imageNightClosed: '/portraits/vespera-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   ashwick: {
     id: 'ashwick',
@@ -274,20 +279,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/ashwick-closed.jpg',
     imageSmile: '/portraits/ashwick-smile.jpg',
     imageMouth: '/portraits/ashwick-mouth.jpg',
-    // Phase-3 cast: Xbot humanoid + director clip map
-    model3d: '/models/Xbot.glb',
-    model3dClipMap: {
-      idle: ['idle'],
-      acknowledge: ['agree'],
-      'glance-left': ['headShake'],
-      'glance-right': ['headShake'],
-      startle: ['sneak_pose', 'headShake'],
-      'silk-reveal': ['sneak_pose', 'agree'],
-      'coy-look': ['headShake'],
-      pride: ['agree'],
-      invitation: ['agree'],
-      bored: ['sad_pose', 'idle'],
-    },
+    ...REALISTIC_MALE,
   },
   rouge: {
     id: 'rouge',
@@ -312,6 +304,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/rouge-mouth.jpg',
     imageNight: '/portraits/rouge-night.jpg',
     imageNightClosed: '/portraits/rouge-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   isolde: {
     id: 'isolde',
@@ -336,6 +329,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/isolde-mouth.jpg',
     imageNight: '/portraits/isolde-night.jpg',
     imageNightClosed: '/portraits/isolde-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   celestine: {
     id: 'celestine',
@@ -360,6 +354,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/celestine-mouth.jpg',
     imageNight: '/portraits/celestine-night.jpg',
     imageNightClosed: '/portraits/celestine-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   briarwyn: {
     id: 'briarwyn',
@@ -384,6 +379,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/briarwyn-mouth.jpg',
     imageNight: '/portraits/briarwyn-night.jpg',
     imageNightClosed: '/portraits/briarwyn-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   nymeris: {
     id: 'nymeris',
@@ -408,6 +404,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/nymeris-mouth.jpg',
     imageNight: '/portraits/nymeris-night.jpg',
     imageNightClosed: '/portraits/nymeris-night-closed.jpg',
+    ...REALISTIC_FEMALE_LITE,
   },
   seraphina: {
     id: 'seraphina',
@@ -432,6 +429,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/seraphina-mouth.jpg',
     imageNight: '/portraits/seraphina-night.jpg',
     imageNightClosed: '/portraits/seraphina-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   camille: {
     id: 'camille',
@@ -456,6 +454,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageMouth: '/portraits/camille-mouth.jpg',
     imageNight: '/portraits/camille-night.jpg',
     imageNightClosed: '/portraits/camille-night-closed.jpg',
+    ...REALISTIC_FEMALE,
   },
   thalia: {
     id: 'thalia',
@@ -486,6 +485,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
       '/portraits/thalia-pose-2.jpg',
       '/portraits/thalia-pose-3.jpg',
     ],
+    ...REALISTIC_FEMALE,
   },
   lysandra: {
     id: 'lysandra',
@@ -508,6 +508,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/lysandra-closed.jpg',
     imageSmile: '/portraits/lysandra-smile.jpg',
     imageMouth: '/portraits/lysandra-mouth.jpg',
+    ...REALISTIC_FEMALE,
   },
   ophelia: {
     id: 'ophelia',
@@ -530,6 +531,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/ophelia-closed.jpg',
     imageSmile: '/portraits/ophelia-smile.jpg',
     imageMouth: '/portraits/ophelia-mouth.jpg',
+    ...REALISTIC_FEMALE,
   },
   lucien: {
     id: 'lucien',
@@ -552,6 +554,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/lucien-closed.jpg',
     imageSmile: '/portraits/lucien-smile.jpg',
     imageMouth: '/portraits/lucien-mouth.jpg',
+    ...REALISTIC_MALE,
   },
   morgaine: {
     id: 'morgaine',
@@ -574,6 +577,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/morgaine-closed.jpg',
     imageSmile: '/portraits/morgaine-smile.jpg',
     imageMouth: '/portraits/morgaine-mouth.jpg',
+    ...REALISTIC_FEMALE_LITE,
   },
 }
 

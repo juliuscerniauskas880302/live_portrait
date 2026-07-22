@@ -49,8 +49,34 @@ export function setMorphGroup(
   }
 }
 
+/** Detect Ready Player Me / AvatarSDK / VRoid-style textured humans. */
+export function detectRealisticModel(root: THREE.Object3D): boolean {
+  let hits = 0
+  root.traverse((c) => {
+    const mesh = c as THREE.Mesh
+    if (!mesh.isMesh) return
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    for (const m of mats) {
+      if (!m) continue
+      const n = (m.name || mesh.name || '').toLowerCase()
+      if (
+        /wolf3d|avatarbody|avatarhead|outfit_|skin|rpm|vroid|fcl_|body_00/i.test(
+          n,
+        )
+      ) {
+        hits++
+      }
+      const std = m as THREE.MeshStandardMaterial
+      if (std.map && std.map.image) hits++
+    }
+  })
+  return hits >= 2
+}
+
 /**
- * In-place oil-style tweak. Keeps original material instances so skinning works.
+ * In-place material tweak. Keeps original instances so skinning + textures work.
+ * `mode: 'realistic'` preserves baked textures; only soft warmth.
+ * `mode: 'stylized'` stronger oil grade (sample robots/soldiers).
  */
 export function applyPaintedMaterials(
   root: THREE.Object3D,
@@ -58,11 +84,15 @@ export function applyPaintedMaterials(
     accent?: string
     paintMap?: THREE.Texture | null
     paintStrength?: number
+    mode?: 'realistic' | 'stylized'
   } = {},
 ) {
   const accent = new THREE.Color(opts.accent ?? '#c9a227')
-  const paintStrength = opts.paintStrength ?? 0.15
+  const mode = opts.mode ?? 'stylized'
+  const paintStrength =
+    opts.paintStrength ?? (mode === 'realistic' ? 0 : 0.15)
   const paintMap = opts.paintMap ?? null
+  const realistic = mode === 'realistic'
 
   root.traverse((c) => {
     const mesh = c as THREE.Mesh
@@ -77,33 +107,46 @@ export function applyPaintedMaterials(
       if (!m) continue
       const mat = m as THREE.MeshStandardMaterial
 
-      mat.side = THREE.DoubleSide
-      mat.transparent = false
-      mat.opacity = 1
-      mat.depthWrite = true
       mat.visible = true
+      mat.depthWrite = true
+      // Realistic skins often need FrontSide; DoubleSide can flash
+      mat.side = realistic ? THREE.FrontSide : THREE.DoubleSide
+      if (mat.transparent && (mat.opacity ?? 1) > 0.98) {
+        mat.transparent = false
+        mat.opacity = 1
+      }
 
       if ('metalness' in mat && typeof mat.metalness === 'number') {
-        mat.metalness = Math.min(mat.metalness, 0.2)
+        mat.metalness = Math.min(
+          mat.metalness,
+          realistic ? 0.35 : 0.2,
+        )
       }
       if ('roughness' in mat && typeof mat.roughness === 'number') {
-        mat.roughness = Math.max(mat.roughness, 0.55)
+        mat.roughness = realistic
+          ? THREE.MathUtils.clamp(mat.roughness, 0.35, 0.9)
+          : Math.max(mat.roughness, 0.55)
       }
       if ('envMapIntensity' in mat && typeof mat.envMapIntensity === 'number') {
-        mat.envMapIntensity = 0.4
+        mat.envMapIntensity = realistic ? 0.65 : 0.4
       }
 
       if ('color' in mat && mat.color && mat.color.isColor) {
-        mat.color.offsetHSL(0.015, -0.06, -0.02)
-        mat.color.lerp(accent, 0.08)
-        // Rescue pure-black unlit-looking albedos
-        if (mat.color.r + mat.color.g + mat.color.b < 0.04 && !mat.map) {
-          mat.color.set(0xc4a070)
+        if (realistic) {
+          // Keep albedo; tiny warm bias only
+          mat.color.offsetHSL(0.008, -0.02, 0)
+        } else {
+          mat.color.offsetHSL(0.015, -0.06, -0.02)
+          mat.color.lerp(accent, 0.08)
+          if (mat.color.r + mat.color.g + mat.color.b < 0.04 && !mat.map) {
+            mat.color.set(0xc4a070)
+          }
         }
       }
 
-      // Soft emissive wash only — never replace the main map (breaks skinned UVs look)
+      // Stylized-only emissive wash — never on realistic (destroys skin maps)
       if (
+        !realistic &&
         paintMap &&
         paintStrength > 0 &&
         'emissive' in mat &&
@@ -113,11 +156,12 @@ export function applyPaintedMaterials(
           mat.emissiveMap = paintMap
           mat.emissive.copy(accent).multiplyScalar(0.06 * paintStrength)
         } catch {
-          /* ignore materials that reject emissiveMap */
+          /* ignore */
         }
       }
 
       if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace
+      if (mat.normalMap) mat.normalMap.colorSpace = THREE.NoColorSpace
       mat.needsUpdate = true
     }
   })

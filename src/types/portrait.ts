@@ -80,6 +80,14 @@ export interface PortraitDef {
    * values are ordered GLB clip name fragments to match.
    */
   model3dClipMap?: Partial<Record<string, string[]>>
+  /**
+   * realistic = keep baked textures / ARKit morphs, no face-card overlay.
+   * stylized = sample bodies; may use oil face-card from 2D still.
+   * auto (default) = detect from material names.
+   */
+  model3dStyle?: 'auto' | 'realistic' | 'stylized'
+  /** Force oil face-card on/off (default: only stylized) */
+  model3dFaceCard?: boolean
   /** Narrative backstory / lore for storytelling */
   lore?: string
   /** Whispered secret quote */

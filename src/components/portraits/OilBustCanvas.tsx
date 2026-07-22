@@ -12,6 +12,7 @@ import {
   applyPaintedMaterials,
   attachPaintedFaceCard,
   collectMorphMeshes,
+  detectRealisticModel,
   detachPaintedFaceCard,
   setMorphGroup,
   type MorphMesh,
@@ -23,6 +24,10 @@ interface Props {
   accent?: string
   paintTextureUrl?: string
   clipMap?: ClipMapOverride
+  /** auto | realistic | stylized */
+  modelStyle?: 'auto' | 'realistic' | 'stylized'
+  /** Force face-card overlay (default: stylized only) */
+  faceCard?: boolean
   active: boolean
 }
 
@@ -37,16 +42,18 @@ const FPS_MIN = 16
 const FPS_GRACE_MS = 5000
 
 /**
- * Phase-3 multi-cast 3D viewport:
- * - glTF + clips + morphs
- * - painted head-card identity from 2D portrait
- * - oil pass optional; FPS fallback (Auto mode)
+ * Phase-4 multi-cast 3D viewport:
+ * - Prefer realistic pre-textured humans (ARKit morphs)
+ * - Face-card only for stylized bodies
+ * - Oil grade light on realistic, stronger on stylized
  */
 export function OilBustCanvas({
   modelUrl,
   accent = '#c9a227',
   paintTextureUrl,
   clipMap,
+  modelStyle = 'auto',
+  faceCard: faceCardPref,
   active,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -77,6 +84,7 @@ export function OilBustCanvas({
     camera.lookAt(0, 1.2, 0)
 
     const isLow = perf === 'low'
+    let isRealistic = modelStyle === 'realistic'
     const renderer = new THREE.WebGLRenderer({
       antialias: !isLow,
       alpha: false,
@@ -86,13 +94,13 @@ export function OilBustCanvas({
     renderer.setClearColor(0x2a2018, 1)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.15
+    renderer.toneMappingExposure = 1.1
     renderer.domElement.className = 'oil-bust-canvas'
     renderer.domElement.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;'
     mount.appendChild(renderer.domElement)
 
-    // Oil pass optional — UnsignedByte (HalfFloat black-screens some GPUs)
+    // Oil pass: subtle on realistic (keep textures), stronger on stylized; High only
     let useOilPass = perf === 'high'
     let rt: THREE.WebGLRenderTarget | null = null
     let oilScene: THREE.Scene | null = null
@@ -319,10 +327,18 @@ export function OilBustCanvas({
           try {
             const model = gltf.scene
             placeHumanoid(model)
+
+            if (modelStyle === 'auto') {
+              isRealistic = detectRealisticModel(model)
+            } else {
+              isRealistic = modelStyle === 'realistic'
+            }
+
             applyPaintedMaterials(model, {
               accent,
               paintMap: paintTex,
-              paintStrength: 0.12,
+              paintStrength: isRealistic ? 0 : 0.12,
+              mode: isRealistic ? 'realistic' : 'stylized',
             })
             morphMeshes = collectMorphMeshes(model)
 
@@ -336,6 +352,7 @@ export function OilBustCanvas({
                 'mixamorig:head',
                 'head',
                 'bip01head',
+                'avatarhead',
               ]) ?? bones.head
             bones.neck = findBone(model, [
               'mixamorigneck',
@@ -346,8 +363,11 @@ export function OilBustCanvas({
             if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
             if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
 
-            // Phase-3: painted oil face card on head bone (identity)
-            if (bones.head && paintTex) {
+            // Face card only for stylized bodies (realistic already has textured faces)
+            const wantFaceCard =
+              faceCardPref === true ||
+              (faceCardPref !== false && !isRealistic && !!paintTex)
+            if (bones.head && paintTex && wantFaceCard) {
               detachPaintedFaceCard(bones.head)
               faceCard = attachPaintedFaceCard(bones.head, paintTex, {
                 radius: 0.14,
@@ -355,6 +375,11 @@ export function OilBustCanvas({
                 yOffset: 0.03,
                 opacity: 0.9,
               })
+            }
+
+            // Realistic: lighter oil grade so textures stay sharp
+            if (isRealistic && oilMat) {
+              oilMat.uniforms.uStrength.value = 0.35
             }
 
             if (gltf.animations?.length) {
@@ -395,8 +420,10 @@ export function OilBustCanvas({
             setStatus('')
             console.info('[OilBust] ready', {
               url,
+              style: isRealistic ? 'realistic' : 'stylized',
               clips: clips.map((c) => c.name),
               morphs: morphMeshes.length,
+              faceCard: Boolean(faceCard),
             })
           } catch (e) {
             console.error('[OilBust] setup failed', e)
@@ -543,6 +570,17 @@ export function OilBustCanvas({
         setMorphGroup(morphMeshes, 'surprised', exprSurprised)
         setMorphGroup(morphMeshes, 'sad', exprSad)
         setMorphGroup(morphMeshes, 'angry', exprAngry)
+        // ARKit eye look from gaze
+        const gx = Math.max(0, Math.min(1, Math.abs(m.gaze.x)))
+        const gy = Math.max(0, Math.min(1, Math.abs(m.gaze.y)))
+        if (m.gaze.x < -0.05) setMorphGroup(morphMeshes, 'lookLeft', gx)
+        else setMorphGroup(morphMeshes, 'lookLeft', 0)
+        if (m.gaze.x > 0.05) setMorphGroup(morphMeshes, 'lookRight', gx)
+        else setMorphGroup(morphMeshes, 'lookRight', 0)
+        if (m.gaze.y < -0.05) setMorphGroup(morphMeshes, 'lookUp', gy)
+        else setMorphGroup(morphMeshes, 'lookUp', 0)
+        if (m.gaze.y > 0.05) setMorphGroup(morphMeshes, 'lookDown', gy)
+        else setMorphGroup(morphMeshes, 'lookDown', 0)
       }
 
       // Soft face-card opacity follows presence
@@ -571,7 +609,12 @@ export function OilBustCanvas({
           renderer.setRenderTarget(null)
           oilMat.uniforms.uTime.value = t
           oilMat.uniforms.uNight.value = night ? 1 : 0
-          oilMat.uniforms.uStrength.value = 0.75
+          // Don't stomp realistic low strength every frame if already set
+          if (!isRealistic) {
+            oilMat.uniforms.uStrength.value = 0.75
+          } else if (oilMat.uniforms.uStrength.value > 0.5) {
+            oilMat.uniforms.uStrength.value = 0.32
+          }
           renderer.render(oilScene, oilCam)
         } else {
           renderer.render(scene, camera)
@@ -611,7 +654,16 @@ export function OilBustCanvas({
       renderer.domElement.remove()
       void effectStartedAt
     }
-  }, [active, modelUrl, accent, paintTextureUrl, clipMap, perf])
+  }, [
+    active,
+    modelUrl,
+    accent,
+    paintTextureUrl,
+    clipMap,
+    modelStyle,
+    faceCardPref,
+    perf,
+  ])
 
   return (
     <div ref={mountRef} className="oil-bust-root">

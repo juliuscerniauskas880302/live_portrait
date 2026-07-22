@@ -280,15 +280,12 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
               onChange={(v) => setPortraitEngine(v as PortraitEngine)}
             />
             <p className="settings-help">
-              <strong>3D cast</strong>:{' '}
-              {Object.values(PORTRAITS)
-                .filter((p) => p.model3d)
-                .map((p) => p.name)
-                .join(', ') || 'none'}
-              . Uses free glTF bodies + oil face card from the painted still,
-              motion clips, and morphs when available. Auto enables 3D when
-              performance is not Low; low FPS falls back to painted 2D this
-              session. Clips: <code>public/models/clip-map.json</code>.
+              <strong>3D cast</strong> uses realistic pre-textured humans
+              (ARKit blink/smile/gaze).{' '}
+              {Object.values(PORTRAITS).filter((p) => p.model3d).length}{' '}
+              portraits have a model. Auto enables 3D when performance is not
+              Low; low FPS falls back to painted 2D this session. Non-commercial
+              sample avatars — see <code>public/models/ATTRIBUTION.md</code>.
             </p>
             <button
               type="button"

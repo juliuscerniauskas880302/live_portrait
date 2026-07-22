@@ -202,6 +202,8 @@ export function LivingPortrait({
             accent={p.accent}
             paintTextureUrl={frames.open}
             clipMap={p.model3dClipMap}
+            modelStyle={p.model3dStyle ?? 'auto'}
+            faceCard={p.model3dFaceCard}
             active={active}
           />
         </Suspense>

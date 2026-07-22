@@ -1,27 +1,52 @@
 {
-  "version": 1,
-  "comment": "Phase-3 registry of free glTF pilots. portraitIds list which cast members use each model by default (also set in portraits.ts).",
+  "version": 2,
+  "comment": "Phase-4 realistic textured humans (primary). Legacy sample bodies kept for optional stylized demos.",
   "models": {
+    "avatarsdk": {
+      "file": "/models/realistic/avatarsdk.glb",
+      "label": "AvatarSDK realistic male",
+      "style": "realistic",
+      "license": "Non-commercial sample (TalkingHead / AvatarSDK)",
+      "notes": "ARKit-style morphs including eyeBlink, gaze"
+    },
+    "brunette": {
+      "file": "/models/realistic/brunette.glb",
+      "label": "Ready Player Me brunette",
+      "style": "realistic",
+      "license": "CC BY-NC 4.0 (Ready Player Me sample via TalkingHead)",
+      "notes": "mouthOpen, mouthSmile, full ARKit set"
+    },
+    "brunette-t": {
+      "file": "/models/realistic/brunette-t.glb",
+      "label": "Ready Player Me brunette (lite)",
+      "style": "realistic",
+      "license": "CC BY-NC 4.0",
+      "notes": "Lighter atlas; eye look morphs"
+    },
+    "vroid": {
+      "file": "/models/realistic/vroid.glb",
+      "label": "VRoid sample",
+      "style": "stylized",
+      "license": "Non-commercial sample",
+      "notes": "Optional anime morph set Fcl_*"
+    },
     "xbot": {
       "file": "/models/Xbot.glb",
-      "label": "Xbot humanoid",
-      "rig": "mixamo",
-      "portraitIds": ["ashwick"],
-      "notes": "Idle/agree/headShake clips"
+      "label": "Xbot (legacy sample)",
+      "style": "stylized",
+      "license": "MIT three.js samples"
     },
     "soldier": {
       "file": "/models/Soldier.glb",
-      "label": "Soldier (Mixamo)",
-      "rig": "mixamo",
-      "portraitIds": ["knight"],
-      "notes": "Idle/Walk/Run — good for classic guard"
+      "label": "Soldier (legacy sample)",
+      "style": "stylized",
+      "license": "MIT three.js samples"
     },
     "robot": {
       "file": "/models/RobotExpressive.glb",
-      "label": "Robot Expressive",
-      "rig": "custom",
-      "portraitIds": ["hollow"],
-      "notes": "Face morphs Angry/Surprised/Sad + Yes/Wave/No"
+      "label": "RobotExpressive (legacy sample)",
+      "style": "stylized",
+      "license": "MIT three.js samples"
     }
   }
 }

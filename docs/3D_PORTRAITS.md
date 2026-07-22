@@ -1,18 +1,14 @@
 # 3D oil portraits — motion pipeline
 
-**Phase 3** expands the free glTF cast and paints oil **face cards** on the head bone.
+**Phase 4** uses **already-textured realistic human GLBs** (Ready Player Me / AvatarSDK samples) with ARKit face morphs. Sample robots/soldiers remain available as legacy stylized bodies.
 
-## 3D cast (current)
+## Why realistic textured models
 
-| Portrait | Model | Highlights |
-|----------|--------|------------|
-| **Lord Ashwick** | `Xbot.glb` | agree / headShake / idle |
-| **Sir Aldric (Knight)** | `Soldier.glb` | Mixamo Idle / Walk / Run |
-| **Father Hollow** | `RobotExpressive.glb` | Yes / Wave / No + morphs Angry/Surprised/Sad |
-
-Settings → **Portrait engine**: Auto / Painted / **3D cast**.
-
----
+| Approach | Pros | Cons |
+|----------|------|------|
+| Sample robots / Xbot | Free animations | Looks like a game, not a portrait |
+| Face-card on robot | Cheap identity | Uncanny sticker on body |
+| **Pre-textured humans** | Real skin/cloth maps + blink/smile morphs | Shared faces across cast until custom GLBs |
 
 ## Architecture
 
@@ -21,92 +17,64 @@ motionDirector → motion store
                     │
                     ▼
               OilBustCanvas
-                ├─ clip-map.json + portrait model3dClipMap
-                ├─ idle + one-shot clips
-                ├─ head/neck bones
-                ├─ face morphs (when GLB has them)
-                ├─ painted head-card (2D portrait still)
-                ├─ oil full-screen grade (High)
-                └─ FPS → session 2D fallback (Auto only)
+                ├─ realistic materials (keep baked maps)
+                ├─ ARKit morphs: blink, smile, mouth, gaze, emotion
+                ├─ bone head/neck + breath sway
+                ├─ optional clips if present in GLB
+                ├─ light oil grade (High only)
+                └─ FPS → 2D fallback (Auto)
 ```
 
----
+Face-card overlay is **off** for realistic models (they already have faces).
 
-## Phase 3: painted face card
+## Current assets (`public/models/realistic/`)
 
-When a portrait has both `model3d` and a 2D still, a soft circular **oil face card** is parented to the head bone (`attachPaintedFaceCard`).  
-That keeps identity closer to the gallery painting without requiring custom UV paint jobs yet.
+| Model | Style | Morphs |
+|-------|--------|--------|
+| `avatarsdk.glb` | Male realistic | eyeBlink, brow, mouth, eye look… |
+| `brunette.glb` | Female realistic | mouthOpen, mouthSmile, full ARKit… |
+| `brunette-t.glb` | Female lite | eye look + brows… |
+| `vroid.glb` | Anime (optional) | Fcl_EYE_Close, Joy, Sorrow… |
 
----
+Legacy: `Xbot.glb`, `Soldier.glb`, `RobotExpressive.glb`.
 
-## Add a motion (no code rebuild for prefs)
-
-### A. Runtime JSON
-
-Edit `public/models/clip-map.json` — preference arrays, first GLB match wins.
-
-### B. Per-portrait
+## Portrait fields
 
 ```ts
-model3d: '/models/MyChar.glb',
-model3dClipMap: {
-  idle: ['Idle'],
-  acknowledge: ['Yes', 'Wave'],
-  startle: ['Jump'],
-},
+model3d: '/models/realistic/brunette.glb',
+model3dStyle: 'realistic',  // keep textures; no face-card
+model3dFaceCard: false,
+model3dClipMap: { /* optional if GLB has clips */ },
 ```
 
-### C. Register in manifest (optional)
+`model3dStyle: 'auto'` detects Wolf3D / Avatar* materials.
 
-`public/models/manifest.json` lists files + portrait ids for tooling.
+## Face morph mapping
 
----
-
-## Face morphs
-
-| Director | Morph fragments |
-|----------|-----------------|
-| blink | blink, eyeBlink… |
-| smile | smile, happy… |
-| mouth | mouthOpen, jawOpen… |
-| startle / silk-reveal | surprised |
-| bored / look-down | sad |
-| pride / smolder | angry |
-
-Hollow’s robot demonstrates Surprised / Sad / Angry.
-
----
-
-## Export checklist (Blender → GLB)
-
-- ~1.6–1.8 m tall, meters, applied scale  
-- Armature + short one-shot clips + looping idle  
-- Optional morphs: blink, smile, mouthOpen, surprised, sad, angry  
-- Prefer &lt; 8 MB for tablets  
-- Drop file in `public/models/`, set `model3d` on the portrait  
-
----
+| Motion | Morph fragments |
+|--------|-----------------|
+| blink | eyeBlinkLeft/Right, Fcl_EYE_Close… |
+| smile | mouthSmile, Joy… |
+| mouth | mouthOpen, jawOpen, viseme_aa… |
+| gaze | eyeLookLeft/Right/Up/Down… |
+| startle | surprised / eyeWide |
+| bored | sad / mouthFrown |
 
 ## Performance
 
-| Mode | Behavior |
-|------|----------|
-| Low | Auto → 2D |
-| Balanced / High | Auto → 3D if `model3d` set |
-| 3D cast | Force 3D |
-| Painted | Force 2D |
-| Low FPS (Auto) | Session fallback to 2D |
+Realistic GLBs are ~2–12 MB. Prefer **Balanced/High**. Auto falls back to painted 2D on Low or low FPS.
 
-Three.js is code-split (`OilBustCanvas` lazy chunk).
+## Swap in your own models
 
----
+1. Export a textured humanoid **GLB** (Mixamo body + face morphs ideal).  
+2. Drop into `public/models/realistic/`.  
+3. Point `model3d` at it; set `model3dStyle: 'realistic'`.  
+4. Map any clips in `clip-map.json` or `model3dClipMap`.  
 
 ## Roadmap
 
 | Phase | Status |
 |-------|--------|
-| 0 Spike | Done |
-| 1 Clips + oil grade | Done |
-| 2 JSON map, paint mats, morphs, FPS fallback | Done |
-| 3 Multi-cast + face cards + free model pack | Done |
-| 4 Custom oil-painted GLBs matching each portrait | Future |
+| 0–3 Sample bodies + face cards | Done (legacy) |
+| **4 Realistic textured cast** | **Done** |
+| 5 Per-portrait unique meshes (custom) | Future |
