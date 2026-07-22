@@ -71,21 +71,49 @@ Realistic GLBs are ~2–12 MB. Prefer **Balanced/High**. Auto falls back to pain
 3. Point `model3d` at it; set `model3dStyle: 'realistic'`.  
 4. Map any clips in `clip-map.json` or `model3dClipMap`.  
 
-## Phase 5 — per-portrait uniqueness (shared mesh)
+## Phase 5 — palette uniqueness
 
-Most cast members still share 1–2 base bodies. Phase 5 differentiates them by:
+1. **Palette tint** — skin / hair / robe / eyes from `PortraitDef`  
+2. **Accent rim light**  
+3. **Slight scale / yaw** seed  
 
-1. **Palette tint** — `skin` / `hair` / `robe` / `robeDark` / `accent` / `eyeColor` from `PortraitDef` recolor materials (map × color)  
-2. **Accent rim light** — warm/cool edge light from portrait accent  
-3. **Slight scale / yaw** — seed from palette strings so stance isn’t identical  
+## Phase 6 — identity looks (runtime JSON)
 
-This is not a full custom mesh per character, but makes Vespera (crimson) vs Briarwyn (emerald) read differently on the same brunette base.
+Edit **`public/models/portrait-looks.json`** (no rebuild):
+
+```json
+{
+  "defaults": {
+    "identityFace": true,
+    "identityFaceOpacity": 0.42,
+    "paletteStrength": 0.72,
+    "hideGlasses": true,
+    "sway": 1
+  },
+  "portraits": {
+    "vespera": { "identityFaceOpacity": 0.48, "sway": 1.2 },
+    "hollow": { "sway": 0.55, "identityFaceOpacity": 0.55 }
+  }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `identityFace` | Soft oil face cameo on head (shows 2D portrait identity) |
+| `identityFaceOpacity` | How strong the cameo is (lower = more 3D face/morphs) |
+| `paletteStrength` | Cloth/skin/hair recolor amount |
+| `hideGlasses` | Hide glasses meshes for cleaner bust |
+| `sway` | Idle body sway multiplier |
+| `model3d` | Optional GLB path override per portrait |
+
+Also: salon **backdrop color** follows `background` / `backgroundNight` from the portrait.
 
 ## Roadmap
 
 | Phase | Status |
 |-------|--------|
-| 0–3 Sample bodies + face cards | Done (legacy) |
+| 0–3 Sample bodies | Done (legacy) |
 | 4 Realistic textured cast | Done |
-| **5 Per-portrait palette uniqueness** | **Done** |
-| 6 Unique custom GLB per portrait | Future |
+| 5 Palette uniqueness | Done |
+| **6 Identity looks JSON + cameo + backdrop** | **Done** |
+| 7 Unique custom GLB per portrait | Future (drop your own files) |

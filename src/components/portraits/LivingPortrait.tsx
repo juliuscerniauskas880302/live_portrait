@@ -199,7 +199,10 @@ export function LivingPortrait({
           <OilBustCanvas
             key={`3d-${p.id}`}
             modelUrl={p.model3d}
+            portraitId={p.id}
             accent={p.accent}
+            background={p.background}
+            backgroundNight={p.backgroundNight}
             paintTextureUrl={frames.open}
             clipMap={p.model3dClipMap}
             modelStyle={p.model3dStyle ?? 'auto'}

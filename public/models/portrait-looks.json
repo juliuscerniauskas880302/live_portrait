@@ -1,0 +1,80 @@
+{
+  "$comment": "Phase-6 per-portrait 3D look overrides. Keys = portrait id. Omit fields to use defaults from PortraitDef + engine.",
+  "defaults": {
+    "identityFace": true,
+    "identityFaceOpacity": 0.42,
+    "paletteStrength": 0.72,
+    "hideGlasses": true,
+    "sway": 1
+  },
+  "portraits": {
+    "ashwick": {
+      "identityFaceOpacity": 0.38,
+      "paletteStrength": 0.78,
+      "sway": 1.15
+    },
+    "vespera": {
+      "identityFaceOpacity": 0.48,
+      "paletteStrength": 0.85,
+      "sway": 1.2
+    },
+    "rouge": {
+      "identityFaceOpacity": 0.5,
+      "sway": 1.25
+    },
+    "isolde": {
+      "identityFaceOpacity": 0.45,
+      "sway": 0.95
+    },
+    "celestine": {
+      "identityFaceOpacity": 0.4,
+      "sway": 1.3
+    },
+    "briarwyn": {
+      "identityFaceOpacity": 0.44,
+      "paletteStrength": 0.88
+    },
+    "nymeris": {
+      "identityFaceOpacity": 0.46,
+      "sway": 0.9
+    },
+    "thalia": {
+      "identityFaceOpacity": 0.5,
+      "sway": 1.1
+    },
+    "lysandra": {
+      "identityFaceOpacity": 0.48,
+      "sway": 0.85
+    },
+    "knight": {
+      "identityFaceOpacity": 0.35,
+      "paletteStrength": 0.65,
+      "sway": 0.7
+    },
+    "hollow": {
+      "identityFaceOpacity": 0.55,
+      "paletteStrength": 0.6,
+      "sway": 0.55,
+      "hideGlasses": true
+    },
+    "nightshade": {
+      "identityFaceOpacity": 0.52,
+      "sway": 0.65
+    },
+    "baron": {
+      "identityFaceOpacity": 0.4,
+      "sway": 0.6
+    },
+    "lucien": {
+      "identityFaceOpacity": 0.4,
+      "sway": 1.2
+    },
+    "ophelia": {
+      "identityFaceOpacity": 0.45
+    },
+    "morgaine": {
+      "identityFaceOpacity": 0.47,
+      "sway": 0.8
+    }
+  }
+}

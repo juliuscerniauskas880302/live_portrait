@@ -268,10 +268,6 @@ export function applyPaintedMaterials(
     }
   })
 
-  // Phase 5: per-portrait uniqueness on shared meshes
-  if (opts.palette) {
-    applyPortraitPalette(root, opts.palette, realistic ? 0.7 : 0.45)
-  }
 }
 
 /**
@@ -281,29 +277,38 @@ export function applyPaintedMaterials(
 export function attachPaintedFaceCard(
   head: THREE.Object3D,
   paintMap: THREE.Texture,
-  opts: { radius?: number; zOffset?: number; yOffset?: number; opacity?: number } = {},
+  opts: {
+    radius?: number
+    zOffset?: number
+    yOffset?: number
+    opacity?: number
+    /** realistic = soft identity blend; stylized = stronger cameo */
+    mode?: 'realistic' | 'stylized'
+  } = {},
 ): THREE.Mesh {
-  const radius = opts.radius ?? 0.13
-  const zOffset = opts.zOffset ?? 0.13
-  const yOffset = opts.yOffset ?? 0.04
-  const opacity = opts.opacity ?? 0.88
+  const realistic = opts.mode === 'realistic'
+  const radius = opts.radius ?? (realistic ? 0.11 : 0.13)
+  const zOffset = opts.zOffset ?? (realistic ? 0.105 : 0.13)
+  const yOffset = opts.yOffset ?? (realistic ? 0.02 : 0.04)
+  const opacity = opts.opacity ?? (realistic ? 0.42 : 0.88)
 
-  // Soft circular alpha so the card blends like a cameo
-  const size = 128
+  // Soft oval alpha — portrait identity without hard sticker edges
+  const size = 160
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')!
+  ctx.clearRect(0, 0, size, size)
   const g = ctx.createRadialGradient(
     size / 2,
-    size / 2,
-    size * 0.28,
-    size / 2,
+    size * 0.48,
+    size * (realistic ? 0.22 : 0.28),
     size / 2,
     size * 0.5,
+    size * (realistic ? 0.48 : 0.5),
   )
   g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.7, 'rgba(255,255,255,0.85)')
+  g.addColorStop(0.55, realistic ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.9)')
   g.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
@@ -315,12 +320,15 @@ export function attachPaintedFaceCard(
     transparent: true,
     opacity,
     depthWrite: false,
+    depthTest: true,
     side: THREE.DoubleSide,
+    // Soft-light-ish: use normal blending; opacity does the rest
   })
-  const card = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), mat)
+  // Slight vertical oval for face proportions
+  const card = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), mat)
   card.name = 'PortraitFaceCard'
   card.position.set(0, yOffset, zOffset)
-  // Face the camera relative to typical Mixamo head forward (+Z)
+  card.scale.set(0.92, 1.12, 1)
   card.renderOrder = 2
   head.add(card)
   return card

@@ -10,6 +10,7 @@ import {
 import { OilPaintShader } from '../../engine/oilPaintShader'
 import {
   applyPaintedMaterials,
+  applyPortraitPalette,
   attachPaintedFaceCard,
   collectMorphMeshes,
   detectRealisticModel,
@@ -18,16 +19,25 @@ import {
   type MorphMesh,
   type PortraitPalette,
 } from '../../engine/paintedMaterials'
+import {
+  hideNamedMeshes,
+  loadPortraitLooks,
+  resolvePortraitLook,
+} from '../../engine/portraitLooks'
 import { useAppStore } from '../../store/useAppStore'
 
 interface Props {
   modelUrl: string
+  portraitId?: string
   accent?: string
+  /** Salon backdrop colors from portrait def */
+  background?: string
+  backgroundNight?: string
   paintTextureUrl?: string
   clipMap?: ClipMapOverride
   /** auto | realistic | stylized */
   modelStyle?: 'auto' | 'realistic' | 'stylized'
-  /** Force face-card overlay (default: stylized only) */
+  /** Force face-card overlay (default: from portrait-looks.json) */
   faceCard?: boolean
   /** Phase-5 per-portrait color identity */
   palette?: PortraitPalette
@@ -45,14 +55,17 @@ const FPS_MIN = 16
 const FPS_GRACE_MS = 5000
 
 /**
- * Phase-4 multi-cast 3D viewport:
- * - Prefer realistic pre-textured humans (ARKit morphs)
- * - Face-card only for stylized bodies
- * - Oil grade light on realistic, stronger on stylized
+ * Phase-6 multi-cast 3D viewport:
+ * - Realistic humans + ARKit morphs
+ * - Per-portrait looks JSON (identity face, palette strength, sway)
+ * - Soft identity cameo + palette + backdrop
  */
 export function OilBustCanvas({
   modelUrl,
+  portraitId = '',
   accent = '#c9a227',
+  background = '#2a2018',
+  backgroundNight = '#121018',
   paintTextureUrl,
   clipMap,
   modelStyle = 'auto',
@@ -166,12 +179,14 @@ export function OilBustCanvas({
     candle.position.set(1.3, 1.15, 1.5)
     scene.add(candle)
 
-    const wall = new THREE.Mesh(
-      new THREE.PlaneGeometry(8, 6),
-      new THREE.MeshStandardMaterial({ color: 0x3d2a22, roughness: 0.92 }),
-    )
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(background),
+      roughness: 0.92,
+    })
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), wallMat)
     wall.position.set(0, 1.4, -1.4)
     scene.add(wall)
+    let lookSway = 1
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(2, 32),
       new THREE.MeshStandardMaterial({ color: 0x1a120e, roughness: 0.95 }),
@@ -298,12 +313,23 @@ export function OilBustCanvas({
       : null
 
     const startLoad = async () => {
+      let look = resolvePortraitLook(portraitId, null)
       try {
         await loadClipMapJson(import.meta.env.BASE_URL || '/')
+        const looksFile = await loadPortraitLooks(import.meta.env.BASE_URL || '/')
+        look = resolvePortraitLook(portraitId, looksFile)
+        lookSway = look.sway
       } catch {
         /* defaults ok */
       }
       if (disposed) return
+
+      // Optional model override from portrait-looks.json
+      const resolvedModelUrl = look.model3d
+        ? look.model3d.startsWith('http')
+          ? look.model3d
+          : `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}${look.model3d.replace(/^\//, '')}`
+        : url
 
       // Paint texture is optional — never block model load on it
       if (paintUrl) {
@@ -332,7 +358,7 @@ export function OilBustCanvas({
 
       const loader = new GLTFLoader()
       loader.load(
-        url,
+        resolvedModelUrl,
         (gltf) => {
           if (disposed) return
           try {
@@ -350,9 +376,23 @@ export function OilBustCanvas({
               paintMap: paintTex,
               paintStrength: isRealistic ? 0 : 0.12,
               mode: isRealistic ? 'realistic' : 'stylized',
-              palette: palette ?? { accent },
+              // palette applied once below with look strength
             })
+            applyPortraitPalette(
+              model,
+              palette ?? { accent },
+              look.paletteStrength,
+            )
+
             morphMeshes = collectMorphMeshes(model)
+
+            if (look.hideGlasses) {
+              hideNamedMeshes(model, [
+                /glass/i,
+                /spectacles/i,
+                /wolf3d_glasses/i,
+              ])
+            }
 
             // Subtle per-portrait scale / stance so shared meshes differ
             if (palette?.robe || palette?.hair) {
@@ -384,23 +424,25 @@ export function OilBustCanvas({
             if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
             if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
 
-            // Face card only for stylized bodies (realistic already has textured faces)
+            // Phase-6 identity face cameo (soft on realistic so morphs still show)
             const wantFaceCard =
               faceCardPref === true ||
-              (faceCardPref !== false && !isRealistic && !!paintTex)
+              (faceCardPref !== false && look.identityFace && !!paintTex)
             if (bones.head && paintTex && wantFaceCard) {
               detachPaintedFaceCard(bones.head)
+              const faceOp = isRealistic
+                ? look.identityFaceOpacity
+                : Math.max(0.75, look.identityFaceOpacity)
               faceCard = attachPaintedFaceCard(bones.head, paintTex, {
-                radius: 0.14,
-                zOffset: 0.12,
-                yOffset: 0.03,
-                opacity: 0.9,
+                mode: isRealistic ? 'realistic' : 'stylized',
+                opacity: faceOp,
               })
+              faceCard.userData.baseOpacity = faceOp
             }
 
             // Realistic: lighter oil grade so textures stay sharp
             if (isRealistic && oilMat) {
-              oilMat.uniforms.uStrength.value = 0.35
+              oilMat.uniforms.uStrength.value = 0.28
             }
 
             if (gltf.animations?.length) {
@@ -440,11 +482,13 @@ export function OilBustCanvas({
             modelOnScreenAt = performance.now()
             setStatus('')
             console.info('[OilBust] ready', {
-              url,
+              url: resolvedModelUrl,
+              portraitId,
               style: isRealistic ? 'realistic' : 'stylized',
               clips: clips.map((c) => c.name),
               morphs: morphMeshes.length,
               faceCard: Boolean(faceCard),
+              sway: lookSway,
             })
           } catch (e) {
             console.error('[OilBust] setup failed', e)
@@ -463,7 +507,7 @@ export function OilBustCanvas({
           }
         },
         (err) => {
-          console.error('[OilBust] load failed', url, err)
+          console.error('[OilBust] load failed', resolvedModelUrl, err)
           setStatus('Could not load model — placeholder')
         },
       )
@@ -534,7 +578,14 @@ export function OilBustCanvas({
         }
       }
 
-      scene.background = new THREE.Color(night ? 0x121018 : 0x2a2018)
+      const bgHex = night ? backgroundNight : background
+      try {
+        scene.background = new THREE.Color(bgHex)
+        wallMat.color.set(bgHex)
+        wallMat.color.offsetHSL(0, -0.05, -0.08)
+      } catch {
+        scene.background = new THREE.Color(night ? 0x121018 : 0x2a2018)
+      }
       key.intensity = night ? 1.15 : 1.85
       candle.intensity = 0.55 + Math.sin(t * 3.2) * 0.12
 
@@ -557,7 +608,8 @@ export function OilBustCanvas({
       }
 
       root.scale.set(1, 1 + m.breath * 0.02, 1)
-      root.rotation.y = Math.sin(t * 0.28) * 0.12 + m.gaze.x * 0.06
+      root.rotation.y =
+        Math.sin(t * 0.28) * 0.12 * lookSway + m.gaze.x * 0.06
 
       // Moment → expressive morph boosts (RobotExpressive etc.)
       if (m.activeMoment && m.activeMoment !== lastMoment) {
@@ -607,7 +659,16 @@ export function OilBustCanvas({
       // Soft face-card opacity follows presence
       if (faceCard) {
         const mat = faceCard.material as THREE.MeshBasicMaterial
-        mat.opacity = 0.82 + m.eyeBrighten * 0.12
+        const base =
+          typeof faceCard.userData.baseOpacity === 'number'
+            ? faceCard.userData.baseOpacity
+            : isRealistic
+              ? 0.42
+              : 0.8
+        mat.opacity = Math.min(
+          0.95,
+          base + m.eyeBrighten * 0.1 + (m.acknowledging ? 0.05 : 0),
+        )
       }
 
       if (m.acknowledging && !wasAcknowledging) playCue('acknowledge')
@@ -678,7 +739,10 @@ export function OilBustCanvas({
   }, [
     active,
     modelUrl,
+    portraitId,
     accent,
+    background,
+    backgroundNight,
     paintTextureUrl,
     clipMap,
     modelStyle,
