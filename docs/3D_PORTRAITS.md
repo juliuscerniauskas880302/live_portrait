@@ -1,7 +1,7 @@
 # 3D oil portraits — motion pipeline
 
-Phase 1 pilot: **Lord Ashwick** uses `public/models/Xbot.glb` when  
-**Settings → Portrait engine** is `Auto` (and performance ≠ Low) or `3D pilot`.
+**Phase 2** pilot: **Lord Ashwick** uses `public/models/Xbot.glb` when  
+**Settings → Portrait engine** is `Auto` (performance ≠ Low) or `3D pilot`.
 
 ## Architecture
 
@@ -10,76 +10,136 @@ motionDirector  →  motion store (blink, gaze, head, activeMoment, acknowledgin
                          │
                          ▼
                  OilBustCanvas
+                   ├─ load clip-map.json (runtime)
                    ├─ idle AnimationClip (loop)
                    ├─ moment / acknowledge clips (one-shot)
                    ├─ head / neck bones from headRotate / gaze
-                   └─ oil-paint full-screen shader grade
+                   ├─ face morphs when GLB provides them
+                   ├─ painted materials + optional portrait wash
+                   ├─ oil-paint full-screen shader grade
+                   └─ FPS monitor → session 2D fallback
 ```
 
-2D multi-frame portraits (`OilLifeCanvas`) stay the default for the rest of the cast.
+2D multi-frame portraits (`OilLifeCanvas`) remain default for the rest of the cast.
 
-## Adding a new motion (no image generation)
+---
 
-1. Author or download a short clip on the **same rig** as the character GLB  
-   (Mixamo → Blender retarget → export GLB, or keyframe in Blender).
-2. Name the clip clearly (`agree`, `headShake`, `silk_reveal`, …).
-3. Map it in either:
-   - **Global defaults:** `src/engine/model3dClips.ts` → `DEFAULT_CLIP_PREFERENCES`
-   - **Per portrait:** `PortraitDef.model3dClipMap` in `src/data/portraits.ts`
-4. Trigger it by existing director cues (`activeMoment` id, tap acknowledge, wink).
+## Phase 2: add a motion without code
 
-Matching is **case-insensitive substring** against clip names on the GLB.
+### A. Runtime JSON (preferred)
 
-### Example (per-portrait)
+Edit **`public/models/clip-map.json`**:
+
+```json
+{
+  "acknowledge": ["agree", "nod"],
+  "silk-reveal": ["sneak_pose", "my_new_clip"]
+}
+```
+
+Arrays are **preference order** (first matching clip name on the GLB wins).  
+Reload the app — no TypeScript rebuild required for preference changes.
+
+### B. Per-portrait override
+
+In `src/data/portraits.ts`:
 
 ```ts
 model3d: '/models/my-character.glb',
 model3dClipMap: {
   idle: ['idle'],
-  acknowledge: ['agree', 'nod'],
-  'silk-reveal': ['silk_reveal', 'sneak_pose'],
-  'coy-look': ['headShake'],
+  acknowledge: ['agree'],
+  'silk-reveal': ['silk_reveal'],
 },
 ```
 
-## Xbot pilot clips (current)
+### C. Built-in defaults
 
-| Clip | Duration | Used for |
-|------|----------|----------|
-| `idle` | 2.5s | ambient loop |
-| `agree` | 1.8s | acknowledge / invitation / soft laugh |
-| `headShake` | 2.6s | glances / coy look |
-| `sneak_pose` | hold | startle / silk-reveal |
-| `sad_pose` | hold | bored / look-down |
-| `walk` / `run` | short | rarely matched |
+`src/engine/model3dClips.ts` → `DEFAULT_CLIP_PREFERENCES`  
+(used when JSON / portrait map omit a cue)
 
-No face morphs on Xbot — blink/smile still come from the motion store but only affect bones when morph targets exist.
+**Match rule:** case-insensitive exact or substring against clip names on the GLB.
 
-## Export checklist (Blender)
+---
 
-- Units: meters; character ~1.6–1.8 m tall  
-- Apply scale; rest pose standing  
-- Export **glTF Binary (.glb)** with:
-  - Skinning / armature
-  - Animations (NLA or actions)
-  - Materials (optional maps)
-- Prefer short one-shots (1–3 s) for moments; looping idle for breath/weight shift  
-- Keep file under ~8 MB for tablets  
+## Face morph targets (when your GLB has them)
+
+Director weights drive morphs if present:
+
+| Motion | Morph name fragments (any match) |
+|--------|-----------------------------------|
+| blink | `blink`, `eyeBlinkLeft`, `eyesClosed`, … |
+| smile | `smile`, `mouthSmile`, `happy`, … |
+| mouth | `mouthOpen`, `jawOpen`, `viseme_aa`, … |
+
+Xbot has **no morphs** — face life is head-bone only until you swap in a morph-ready character.
+
+---
+
+## Painted materials
+
+`applyPaintedMaterials` (Phase 2):
+
+- Warmer, rougher, less plastic shading  
+- Soft blend of the 2D portrait still as map/emissive wash  
+- Works with oil post-process shader for canvas grade  
+
+---
+
+## FPS auto-fallback
+
+If average FPS stays **&lt; 18** for ~4s while 3D is active:
+
+- Session flag `model3dFpsFallback` → renderer switches to **painted 2D**  
+- Toast: “3D struggling — switched to painted view”  
+- Clears when you change **Portrait engine**  
+- Not persisted across full page reloads  
+
+---
+
+## Xbot pilot clips
+
+| Clip | Used for |
+|------|----------|
+| `idle` | ambient loop |
+| `agree` | acknowledge / invitation / soft laugh |
+| `headShake` | glances / coy look |
+| `sneak_pose` | startle / silk-reveal |
+| `sad_pose` | bored / look-down |
+| `walk` / `run` | rarely matched |
+
+---
+
+## Export checklist (Blender → GLB)
+
+- Units: meters; character ~1.6–1.8 m  
+- Apply transforms; standing rest pose  
+- Export **glTF Binary (.glb)** with armature + animations + materials  
+- Short one-shots (1–3 s) for moments; looping idle for weight shift  
+- Optional morphs named for blink / smile / mouthOpen  
+- Prefer **&lt; 8 MB** for tablets  
+
+---
 
 ## Performance
 
-| Mode | 3D behavior |
-|------|-------------|
-| Low | Auto uses **2D** even if `model3d` is set |
-| Balanced / High | Auto enables 3D when `model3d` present |
-| 3D pilot | Force 3D if model exists |
-| Painted | Force 2D always |
+| Mode | Behavior |
+|------|----------|
+| Low | Auto uses **2D** |
+| Balanced / High | Auto uses 3D when `model3d` set |
+| 3D pilot | Force 3D |
+| Painted | Force 2D |
+| Low FPS | Session fallback to 2D |
 
-Three.js is **code-split** (`OilBustCanvas` lazy chunk) so 2D tablets never download it.
+Three.js is **code-split** (`OilBustCanvas` lazy chunk).
 
-## Next (Phase 2+)
+---
 
-- Painted albedo textures (oil look on the mesh, not only post)
-- Face morph targets (`blink`, `smile`, `mouthOpen`)
-- Mixamo library pack retargeted to one canonical rig
-- Automatic 2D fallback if FPS drops  
+## Roadmap
+
+| Phase | Status |
+|-------|--------|
+| 0 Spike (load + frame) | Done |
+| 1 Clips + oil grade + settings | Done |
+| 2 JSON clip map, paint mats, morphs, FPS fallback | Done |
+| 3 Custom painted cast GLBs / Mixamo pack | Next |

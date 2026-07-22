@@ -74,6 +74,7 @@ export const useAppStore = create<AppStore>()(
       autoRotateSec: 120 as AutoRotateSec,
       // Default auto: 3D when portrait has model3d and perf is not Low
       portraitEngine: 'auto' as PortraitEngine,
+      model3dFpsFallback: false,
 
       resolvedTheme: resolveThemeFromClock('auto', 7, 20),
       phase: 'boot',
@@ -119,7 +120,13 @@ export const useAppStore = create<AppStore>()(
       setAutoRotateSec: (autoRotateSec: AutoRotateSec) =>
         set({ autoRotateSec, rotateNonce: get().rotateNonce + 1 }),
       setPortraitEngine: (portraitEngine: PortraitEngine) =>
-        set({ portraitEngine }),
+        set({ portraitEngine, model3dFpsFallback: false }),
+      triggerModel3dFpsFallback: () => {
+        if (get().model3dFpsFallback) return
+        set({ model3dFpsFallback: true })
+        get().showToast('3D struggling — switched to painted view')
+      },
+      clearModel3dFpsFallback: () => set({ model3dFpsFallback: false }),
       setResolvedTheme: (resolvedTheme: ResolvedTheme) => set({ resolvedTheme }),
       setPhase: (phase) => set({ phase }),
       setPortrait: (currentPortraitId: PortraitId) => {

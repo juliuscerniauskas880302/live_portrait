@@ -2,17 +2,25 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import {
+  loadClipMapJson,
   resolveClipName,
   type ClipMapOverride,
   type Model3dCue,
 } from '../../engine/model3dClips'
 import { OilPaintShader } from '../../engine/oilPaintShader'
+import {
+  applyPaintedMaterials,
+  collectMorphMeshes,
+  setMorphGroup,
+  type MorphMesh,
+} from '../../engine/paintedMaterials'
 import { useAppStore } from '../../store/useAppStore'
 
 interface Props {
   modelUrl: string
   accent?: string
-  /** Per-portrait clip name preferences */
+  /** 2D portrait still — soft oil identity wash on materials */
+  paintTextureUrl?: string
   clipMap?: ClipMapOverride
   active: boolean
 }
@@ -22,15 +30,21 @@ type BoneMap = {
   neck?: THREE.Object3D
 }
 
+/** Sustained low FPS → session 2D fallback */
+const FPS_SAMPLE_MS = 2000
+const FPS_MIN = 18
+
 /**
- * Phase-1 3D pilot:
- * - glTF character + idle / moment / acknowledge clips
- * - Head bones follow motion director
- * - Oil-paint full-screen grade after render
+ * Phase-2 3D pilot:
+ * - External clip-map.json + per-portrait overrides
+ * - Painted materials + morph blink/smile/mouth
+ * - Oil post-process grade
+ * - FPS auto-fallback to 2D
  */
 export function OilBustCanvas({
   modelUrl,
   accent = '#c9a227',
+  paintTextureUrl,
   clipMap,
   active,
 }: Props) {
@@ -46,13 +60,12 @@ export function OilBustCanvas({
     let disposed = false
     let raf = 0
     const clock = new THREE.Clock()
-    const override = clipMap as ClipMapOverride | undefined
+    const override = clipMap
 
     const setStatus = (msg: string) => {
       if (statusRef.current) statusRef.current.textContent = msg
     }
 
-    // ── Scene ────────────────────────────────────────────────────
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x2a2018)
 
@@ -70,13 +83,12 @@ export function OilBustCanvas({
     renderer.setClearColor(0x2a2018, 1)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.15
+    renderer.toneMappingExposure = 1.12
     renderer.domElement.className = 'oil-bust-canvas'
     renderer.domElement.style.cssText =
       'position:absolute;inset:0;width:100%;height:100%;display:block;'
     mount.appendChild(renderer.domElement)
 
-    // Oil post: scene → RT → fullscreen quad
     let rt: THREE.WebGLRenderTarget | null = null
     let oilScene: THREE.Scene | null = null
     let oilCam: THREE.OrthographicCamera | null = null
@@ -97,21 +109,20 @@ export function OilBustCanvas({
         depthWrite: false,
       })
       oilMat.uniforms.tDiffuse.value = rt.texture
-      const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), oilMat)
-      oilScene.add(quad)
+      oilScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), oilMat))
     }
 
     scene.add(new THREE.AmbientLight(0xfff0dd, 0.85))
-    const key = new THREE.DirectionalLight(0xffe8c0, 1.8)
+    const key = new THREE.DirectionalLight(0xffe8c0, 1.75)
     key.position.set(2, 4, 3)
     scene.add(key)
-    const fill = new THREE.DirectionalLight(0xaaccff, 0.65)
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.6)
     fill.position.set(-3, 2, 2)
     scene.add(fill)
-    const rim = new THREE.DirectionalLight(0xffaa66, 0.8)
+    const rim = new THREE.DirectionalLight(0xffaa66, 0.75)
     rim.position.set(0, 2, -3)
     scene.add(rim)
-    const candle = new THREE.PointLight(0xff9944, 0.75, 10, 2)
+    const candle = new THREE.PointLight(0xff9944, 0.7, 10, 2)
     candle.position.set(1.3, 1.15, 1.5)
     scene.add(candle)
 
@@ -142,9 +153,16 @@ export function OilBustCanvas({
     const bones: BoneMap = { head: placeholder.head }
     let baseHeadQuat = placeholder.head.quaternion.clone()
     let baseNeckQuat = new THREE.Quaternion()
+    let morphMeshes: MorphMesh[] = []
     let lastMoment: string | null = null
     let wasAcknowledging = false
     let wasWink = false
+    let paintTex: THREE.Texture | null = null
+
+    // FPS monitor
+    let fpsFrames = 0
+    let fpsWindowStart = performance.now()
+    let lowFpsStreak = 0
 
     const findBone = (obj: THREE.Object3D, names: string[]) => {
       let found: THREE.Object3D | undefined
@@ -157,13 +175,11 @@ export function OilBustCanvas({
     }
 
     const _tmp = new THREE.Vector3()
-
     const placeHumanoid = (model: THREE.Object3D) => {
       model.position.set(0, 0, 0)
       model.rotation.set(0, 0, 0)
       model.scale.set(1, 1, 1)
       model.updateMatrixWorld(true)
-
       let boneH = 0
       model.traverse((c) => {
         const sk = c as THREE.SkinnedMesh
@@ -175,7 +191,6 @@ export function OilBustCanvas({
           })
         }
       })
-
       let box = new THREE.Box3().setFromObject(model)
       let size = box.getSize(new THREE.Vector3())
       if (!Number.isFinite(size.y) || size.y < 0.01) {
@@ -191,17 +206,12 @@ export function OilBustCanvas({
       model.updateMatrixWorld(true)
     }
 
-    const playCue = (cue: Model3dCue | string, opts?: { loop?: boolean }) => {
+    const playCue = (cue: Model3dCue | string) => {
       if (!mixer || !clips.length) return false
       const name = resolveClipName(clips, cue, override)
       if (!name) return false
       const clip = clips.find((c) => c.name === name)
       if (!clip) return false
-
-      if (momentAction && momentAction.getClip() !== clip) {
-        momentAction.fadeOut(0.35)
-      }
-      // Don't restart same one-shot if already playing strongly
       if (
         momentAction &&
         momentAction.getClip() === clip &&
@@ -210,28 +220,23 @@ export function OilBustCanvas({
       ) {
         return true
       }
-
+      if (momentAction && momentAction.getClip() !== clip) {
+        momentAction.fadeOut(0.35)
+      }
       const action = mixer.clipAction(clip)
       action.reset()
-      if (opts?.loop) {
-        action.setLoop(THREE.LoopRepeat, Infinity)
-        action.clampWhenFinished = false
-      } else {
-        action.setLoop(THREE.LoopOnce, 1)
-        action.clampWhenFinished = true
-      }
+      action.setLoop(THREE.LoopOnce, 1)
+      action.clampWhenFinished = true
       action.fadeIn(0.4)
       action.setEffectiveWeight(0.95)
-      action.setEffectiveTimeScale(cue === 'idle' ? 0.7 : 0.85)
+      action.setEffectiveTimeScale(0.85)
       action.play()
       momentAction = action
-
-      // Soften idle under one-shots
-      if (idleAction && cue !== 'idle') {
+      if (idleAction) {
         idleAction.setEffectiveWeight(0.25)
         window.setTimeout(() => {
-          if (!disposed && idleAction) idleAction.setEffectiveWeight(0.75)
-        }, Math.min(4000, clip.duration * 1000 + 400))
+          if (!disposed && idleAction) idleAction.setEffectiveWeight(0.8)
+        }, Math.min(4500, clip.duration * 1000 + 500))
       }
       return true
     }
@@ -240,108 +245,130 @@ export function OilBustCanvas({
       ? modelUrl
       : `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}${modelUrl.replace(/^\//, '')}`
 
-    const loader = new GLTFLoader()
-    loader.load(
-      url,
-      (gltf) => {
-        if (disposed) return
-        try {
-          const model = gltf.scene
-          let meshCount = 0
-          model.traverse((c) => {
-            const mesh = c as THREE.Mesh
-            if (!mesh.isMesh) return
-            meshCount++
-            mesh.visible = true
-            mesh.frustumCulled = false
-            const mats = Array.isArray(mesh.material)
-              ? mesh.material
-              : [mesh.material]
-            for (const mat of mats) {
-              if (!mat) continue
-              mat.side = THREE.DoubleSide
-              mat.transparent = false
-              mat.opacity = 1
-              mat.needsUpdate = true
-              const std = mat as THREE.MeshStandardMaterial
-              if ('metalness' in std)
-                std.metalness = Math.min(std.metalness ?? 0, 0.2)
-              if ('roughness' in std)
-                std.roughness = Math.max(std.roughness ?? 0.5, 0.5)
-              if (std.map) std.map.colorSpace = THREE.SRGBColorSpace
-              if ('color' in std && std.color && !std.map) {
-                if (std.color.r + std.color.g + std.color.b < 0.05) {
-                  std.color.set(0xc4a070)
-                }
+    const paintUrl = paintTextureUrl
+      ? paintTextureUrl.startsWith('http')
+        ? paintTextureUrl
+        : `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}${paintTextureUrl.replace(/^\//, '')}`
+      : null
+
+    const startLoad = async () => {
+      await loadClipMapJson(import.meta.env.BASE_URL || '/')
+      if (disposed) return
+
+      if (paintUrl) {
+        await new Promise<void>((resolve) => {
+          new THREE.TextureLoader().load(
+            paintUrl,
+            (tex) => {
+              if (disposed) {
+                tex.dispose()
+                resolve()
+                return
               }
-            }
-          })
-
-          placeHumanoid(model)
-          root.remove(placeholder.group)
-          root.add(model)
-
-          bones.head =
-            findBone(model, ['mixamorighead', 'head', 'bip01head']) ??
-            bones.head
-          bones.neck = findBone(model, ['mixamorigneck', 'neck', 'bip01neck'])
-          if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
-          if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
-
-          if (gltf.animations?.length) {
-            mixer = new THREE.AnimationMixer(model)
-            clips.push(...gltf.animations)
-            mixer.addEventListener('finished', (e) => {
-              const act = e.action as THREE.AnimationAction
-              if (act === momentAction) {
-                act.fadeOut(0.4)
-                if (idleAction) idleAction.setEffectiveWeight(0.85)
-              }
-            })
-
-            const idleName = resolveClipName(clips, 'idle', override)
-            const idleClip =
-              clips.find((c) => c.name === idleName) ?? clips[0]
-            idleAction = mixer.clipAction(idleClip)
-            idleAction.reset().play()
-            idleAction.setLoop(THREE.LoopRepeat, Infinity)
-            idleAction.setEffectiveWeight(0.85)
-            idleAction.setEffectiveTimeScale(0.7)
-            mixer.update(0.05)
-          }
-
-          model.updateMatrixWorld(true)
-          const box = new THREE.Box3().setFromObject(model)
-          if (!box.isEmpty()) {
-            const size = box.getSize(new THREE.Vector3())
-            const center = box.getCenter(new THREE.Vector3())
-            const lookY = box.min.y + size.y * 0.7
-            const dist = Math.max(1.6, size.y * 1.05)
-            camera.position.set(center.x, lookY, center.z + dist)
-            camera.lookAt(center.x, lookY, center.z)
-            camera.updateProjectionMatrix()
-          }
-
-          setStatus('')
-          console.info(
-            '[OilBust] Phase-1 pilot ready',
-            { url, meshCount, clips: clips.map((c) => c.name) },
+              tex.colorSpace = THREE.SRGBColorSpace
+              paintTex = tex
+              resolve()
+            },
+            undefined,
+            () => resolve(),
           )
-        } catch (e) {
-          console.error('[OilBust] setup failed', e)
-          setStatus('3D setup error — placeholder')
-        }
-      },
-      (ev) => {
-        if (ev.total > 0) {
-          setStatus(`Loading 3D… ${Math.round((ev.loaded / ev.total) * 100)}%`)
-        }
-      },
-      (err) => {
-        console.error('[OilBust] load failed', url, err)
-        setStatus('Could not load model — placeholder')
-      },
-    )
+        })
+      }
+
+      if (disposed) return
+
+      const loader = new GLTFLoader()
+      loader.load(
+        url,
+        (gltf) => {
+          if (disposed) return
+          try {
+            const model = gltf.scene
+            placeHumanoid(model)
+            applyPaintedMaterials(model, {
+              accent,
+              paintMap: paintTex,
+              paintStrength: 0.2,
+            })
+            morphMeshes = collectMorphMeshes(model)
+
+            root.remove(placeholder.group)
+            root.add(model)
+
+            bones.head =
+              findBone(model, ['mixamorighead', 'head', 'bip01head']) ??
+              bones.head
+            bones.neck = findBone(model, [
+              'mixamorigneck',
+              'neck',
+              'bip01neck',
+            ])
+            if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
+            if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
+
+            if (gltf.animations?.length) {
+              mixer = new THREE.AnimationMixer(model)
+              clips.push(...gltf.animations)
+              mixer.addEventListener('finished', (e) => {
+                const act = e.action as THREE.AnimationAction
+                if (act === momentAction) {
+                  act.fadeOut(0.4)
+                  if (idleAction) idleAction.setEffectiveWeight(0.85)
+                }
+              })
+              const idleName = resolveClipName(clips, 'idle', override)
+              const idleClip =
+                clips.find((c) => c.name === idleName) ?? clips[0]
+              idleAction = mixer.clipAction(idleClip)
+              idleAction.reset().play()
+              idleAction.setLoop(THREE.LoopRepeat, Infinity)
+              idleAction.setEffectiveWeight(0.85)
+              idleAction.setEffectiveTimeScale(0.7)
+              mixer.update(0.05)
+            }
+
+            model.updateMatrixWorld(true)
+            const box = new THREE.Box3().setFromObject(model)
+            if (!box.isEmpty()) {
+              const size = box.getSize(new THREE.Vector3())
+              const center = box.getCenter(new THREE.Vector3())
+              const lookY = box.min.y + size.y * 0.7
+              const dist = Math.max(1.6, size.y * 1.05)
+              camera.position.set(center.x, lookY, center.z + dist)
+              camera.lookAt(center.x, lookY, center.z)
+              camera.updateProjectionMatrix()
+            }
+
+            setStatus(
+              morphMeshes.length
+                ? ''
+                : '', // no banner when healthy
+            )
+            console.info('[OilBust] Phase-2 ready', {
+              url,
+              clips: clips.map((c) => c.name),
+              morphMeshes: morphMeshes.length,
+              paint: Boolean(paintTex),
+            })
+          } catch (e) {
+            console.error('[OilBust] setup failed', e)
+            setStatus('3D setup error — placeholder')
+          }
+        },
+        (ev) => {
+          if (ev.total > 0) {
+            setStatus(
+              `Loading 3D… ${Math.round((ev.loaded / ev.total) * 100)}%`,
+            )
+          }
+        },
+        (err) => {
+          console.error('[OilBust] load failed', url, err)
+          setStatus('Could not load model — placeholder')
+        },
+      )
+    }
+    void startLoad()
 
     let lastW = 0
     let lastH = 0
@@ -359,9 +386,7 @@ export function OilBustCanvas({
       renderer.setSize(w, h, false)
       if (rt) {
         rt.setSize(Math.floor(w * pr), Math.floor(h * pr))
-        if (oilMat) {
-          oilMat.uniforms.uRes.value.set(w * pr, h * pr)
-        }
+        if (oilMat) oilMat.uniforms.uRes.value.set(w * pr, h * pr)
       }
     }
     const ro = new ResizeObserver(resize)
@@ -382,8 +407,25 @@ export function OilBustCanvas({
       const m = store.motion
       const night = store.resolvedTheme === 'night'
 
+      // FPS sampling
+      fpsFrames++
+      const now = performance.now()
+      if (now - fpsWindowStart >= FPS_SAMPLE_MS) {
+        const fps = (fpsFrames * 1000) / (now - fpsWindowStart)
+        fpsFrames = 0
+        fpsWindowStart = now
+        if (fps > 0 && fps < FPS_MIN) {
+          lowFpsStreak++
+          if (lowFpsStreak >= 2) {
+            store.triggerModel3dFpsFallback()
+          }
+        } else {
+          lowFpsStreak = 0
+        }
+      }
+
       scene.background = new THREE.Color(night ? 0x121018 : 0x2a2018)
-      key.intensity = night ? 1.15 : 1.8
+      key.intensity = night ? 1.15 : 1.75
       candle.intensity = 0.55 + Math.sin(t * 3.2) * 0.12
 
       if (mixer) mixer.update(dt)
@@ -405,20 +447,19 @@ export function OilBustCanvas({
       }
 
       root.scale.set(1, 1 + m.breath * 0.02, 1)
-      // Gentle sway — readable depth without spinning wildly
       root.rotation.y = Math.sin(t * 0.28) * 0.12 + m.gaze.x * 0.06
 
-      // ── Director cues → clips ─────────────────────────────────
-      if (m.acknowledging && !wasAcknowledging) {
-        playCue('acknowledge')
+      // Face morphs when the GLB provides them
+      if (morphMeshes.length) {
+        setMorphGroup(morphMeshes, 'blink', m.blink)
+        setMorphGroup(morphMeshes, 'smile', m.expressionSmile)
+        setMorphGroup(morphMeshes, 'mouth', m.mouth)
       }
+
+      if (m.acknowledging && !wasAcknowledging) playCue('acknowledge')
       wasAcknowledging = m.acknowledging
-
-      if (m.wink && !wasWink) {
-        playCue('wink')
-      }
+      if (m.wink && !wasWink) playCue('wink')
       wasWink = m.wink
-
       if (m.activeMoment && m.activeMoment !== lastMoment) {
         lastMoment = m.activeMoment
         playCue(m.activeMoment)
@@ -434,7 +475,7 @@ export function OilBustCanvas({
         renderer.setRenderTarget(null)
         oilMat.uniforms.uTime.value = t
         oilMat.uniforms.uNight.value = night ? 1 : 0
-        oilMat.uniforms.uStrength.value = isLow ? 0.45 : 0.85
+        oilMat.uniforms.uStrength.value = isLow ? 0.45 : 0.88
         renderer.render(oilScene, oilCam)
       } else {
         renderer.render(scene, camera)
@@ -449,6 +490,7 @@ export function OilBustCanvas({
       mixer?.stopAllAction()
       rt?.dispose()
       oilMat?.dispose()
+      paintTex?.dispose()
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh
         if (!mesh.isMesh) return
@@ -463,7 +505,7 @@ export function OilBustCanvas({
       renderer.dispose()
       renderer.domElement.remove()
     }
-  }, [active, modelUrl, accent, clipMap, perf])
+  }, [active, modelUrl, accent, paintTextureUrl, clipMap, perf])
 
   return (
     <div ref={mountRef} className="oil-bust-root">
@@ -487,14 +529,12 @@ function buildFallbackBust(accent: THREE.Color) {
     color: 0x1c1210,
     roughness: 0.9,
   })
-
   const torso = new THREE.Mesh(
     new THREE.CylinderGeometry(0.22, 0.32, 0.55, 16),
     cloth,
   )
   torso.position.set(0, 0.95, 0)
   group.add(torso)
-
   const shoulders = new THREE.Mesh(
     new THREE.SphereGeometry(0.28, 16, 12),
     cloth,
@@ -502,30 +542,25 @@ function buildFallbackBust(accent: THREE.Color) {
   shoulders.position.set(0, 1.18, 0)
   shoulders.scale.set(1.5, 0.55, 0.7)
   group.add(shoulders)
-
   const neck = new THREE.Mesh(
     new THREE.CylinderGeometry(0.07, 0.09, 0.12, 10),
     skin,
   )
   neck.position.set(0, 1.38, 0)
   group.add(neck)
-
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 18), skin)
   head.position.set(0, 1.58, 0)
   head.scale.set(1, 1.15, 0.95)
   group.add(head)
-
   const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 12), hair)
   hairCap.position.set(0, 1.66, -0.02)
   hairCap.scale.set(1.05, 0.75, 1.05)
   group.add(hairCap)
-
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x221810 })
   const eyeL = new THREE.Mesh(new THREE.CircleGeometry(0.022, 12), eyeMat)
   eyeL.position.set(-0.06, 1.6, 0.16)
   const eyeR = eyeL.clone()
   eyeR.position.x = 0.06
   group.add(eyeL, eyeR)
-
   return { group, head }
 }

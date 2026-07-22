@@ -38,6 +38,7 @@ export function LivingPortrait({
   const theme = useAppStore((s) => s.resolvedTheme)
   const perf = useAppStore((s) => s.performanceMode)
   const portraitEngine = useAppStore((s) => s.portraitEngine)
+  const model3dFpsFallback = useAppStore((s) => s.model3dFpsFallback)
   // Full canvas mode must NOT subscribe to motion/parallax — those update every
   // frame and force React re-renders of expensive DOM (blur plate, blend layers).
   // Compact gallery still needs blink/breath CSS vars; drive them via rAF + ref.
@@ -52,6 +53,7 @@ export function LivingPortrait({
   const use3d =
     !compact &&
     !!p.model3d &&
+    !model3dFpsFallback &&
     (portraitEngine === '3d' ||
       (portraitEngine === 'auto' && perf !== 'low'))
 
@@ -198,6 +200,7 @@ export function LivingPortrait({
             key={`3d-${p.id}`}
             modelUrl={p.model3d}
             accent={p.accent}
+            paintTextureUrl={frames.open}
             clipMap={p.model3dClipMap}
             active={active}
           />

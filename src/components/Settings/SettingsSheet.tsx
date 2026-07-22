@@ -275,10 +275,10 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
               onChange={(v) => setPortraitEngine(v as PortraitEngine)}
             />
             <p className="settings-help">
-              <strong>3D pilot</strong> uses a free glTF model (Lord Ashwick) with
-              oil-style toon materials driven by the same motion director. Auto
-              enables 3D only when performance is not Low. Fall back to Painted on
-              weak tablets.
+              <strong>3D pilot</strong> (Lord Ashwick): glTF + motion clips + oil
+              paint grade. Auto enables 3D when performance is not Low. If FPS
+              drops, the app switches to painted 2D for this session. Clip names
+              live in <code>public/models/clip-map.json</code>.
             </p>
             <button
               type="button"

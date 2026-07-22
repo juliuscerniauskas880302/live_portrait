@@ -147,6 +147,11 @@ export interface AppSettings {
    * 2d / 3d force the renderer.
    */
   portraitEngine: PortraitEngine
+  /**
+   * When true, 3D was auto-disabled this session due to low FPS.
+   * Not persisted — resets on full reload.
+   */
+  model3dFpsFallback?: boolean
 }
 
 export interface AppStore extends AppSettings {
@@ -179,6 +184,9 @@ export interface AppStore extends AppSettings {
   setThunderstormEnabled: (on: boolean) => void
   setAutoRotateSec: (sec: AutoRotateSec) => void
   setPortraitEngine: (engine: PortraitEngine) => void
+  /** Session-only: drop to 2D after sustained low FPS in 3D */
+  triggerModel3dFpsFallback: () => void
+  clearModel3dFpsFallback: () => void
   setResolvedTheme: (t: ResolvedTheme) => void
   setPhase: (p: AppPhase) => void
   setPortrait: (id: PortraitId) => void

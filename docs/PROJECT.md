@@ -72,9 +72,11 @@ Irregular, hold-heavy motion:
 
 - Settings: **Portrait engine** = Auto / Painted / 3D pilot  
 - **Lord Ashwick** ships with a free glTF humanoid (`public/models/Xbot.glb`)  
-- Same motion director drives **idle + moment clips + head bones**  
-- Oil-paint post shader grades the WebGL view  
-- See `docs/3D_PORTRAITS.md` for adding clips without new still images  
+- Same motion director drives **idle + moment clips + head bones + morphs**  
+- Oil-paint post shader + painted materials; soft 2D portrait wash  
+- Runtime clip map: `public/models/clip-map.json` (no rebuild)  
+- Low-FPS session auto-fallback to painted 2D  
+- See `docs/3D_PORTRAITS.md` for the full pipeline  
 
 
 ### 4.3 Atmosphere
