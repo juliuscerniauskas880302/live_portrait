@@ -9,6 +9,7 @@ import type {
   IntensityLevel,
   LayoutMode,
   PerformanceMode,
+  PortraitEngine,
   PortraitId,
   PortraitTone,
   ThemeMode,
@@ -26,6 +27,8 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
   const setThemeMode = useAppStore((s) => s.setThemeMode)
   const performanceMode = useAppStore((s) => s.performanceMode)
   const setPerformanceMode = useAppStore((s) => s.setPerformanceMode)
+  const portraitEngine = useAppStore((s) => s.portraitEngine)
+  const setPortraitEngine = useAppStore((s) => s.setPortraitEngine)
   const intensity = useAppStore((s) => s.intensity)
   const setIntensity = useAppStore((s) => s.setIntensity)
   const layout = useAppStore((s) => s.layout)
@@ -261,6 +264,22 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
               ]}
               onChange={(v) => setPerformanceMode(v as PerformanceMode)}
             />
+            <Segmented
+              label="Portrait engine"
+              value={portraitEngine}
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: '2d', label: 'Painted' },
+                { value: '3d', label: '3D pilot' },
+              ]}
+              onChange={(v) => setPortraitEngine(v as PortraitEngine)}
+            />
+            <p className="settings-help">
+              <strong>3D pilot</strong> uses a free glTF model (Lord Ashwick) with
+              oil-style toon materials driven by the same motion director. Auto
+              enables 3D only when performance is not Low. Fall back to Painted on
+              weak tablets.
+            </p>
             <button
               type="button"
               className="settings-fs-btn"

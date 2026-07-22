@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { PortraitDef, ResolvedTheme } from '../../types/portrait'
 import { useAppStore } from '../../store/useAppStore'
 import { OilLifeCanvas } from './OilLifeCanvas'
+
+/** Three.js path is code-split so 2D tablets never download the WebGL stack. */
+const OilBustCanvas = lazy(() =>
+  import('./OilBustCanvas').then((m) => ({ default: m.OilBustCanvas })),
+)
 
 interface Props {
   portrait: PortraitDef
@@ -32,6 +37,7 @@ export function LivingPortrait({
 }: Props) {
   const theme = useAppStore((s) => s.resolvedTheme)
   const perf = useAppStore((s) => s.performanceMode)
+  const portraitEngine = useAppStore((s) => s.portraitEngine)
   // Full canvas mode must NOT subscribe to motion/parallax — those update every
   // frame and force React re-renders of expensive DOM (blur plate, blend layers).
   // Compact gallery still needs blink/breath CSS vars; drive them via rAF + ref.
@@ -42,6 +48,12 @@ export function LivingPortrait({
   const compactRootRef = useRef<HTMLDivElement>(null)
 
   const frames = useMemo(() => resolveFrames(p, theme), [p, theme])
+
+  const use3d =
+    !compact &&
+    !!p.model3d &&
+    (portraitEngine === '3d' ||
+      (portraitEngine === 'auto' && perf !== 'low'))
 
   useEffect(() => {
     const onVis = () => setActive(document.visibilityState === 'visible')
@@ -161,25 +173,46 @@ export function LivingPortrait({
     <div
       className={`living-portrait theme-${theme} ${
         acknowledging ? 'is-acknowledging' : ''
-      } ${frames.isNightOutfit ? 'is-night-outfit' : ''}`}
+      } ${frames.isNightOutfit ? 'is-night-outfit' : ''} ${
+        use3d ? 'is-3d' : ''
+      }`}
       role="img"
       aria-label={`${p.name}, ${p.title}`}
     >
-      <div
-        className="portrait-bg-plate"
-        style={{ backgroundImage: `url(${frames.open})` }}
-        aria-hidden
-      />
+      {/* 2D blur plate only for painted mode — hides under real 3D */}
+      {!use3d && (
+        <div
+          className="portrait-bg-plate"
+          style={{ backgroundImage: `url(${frames.open})` }}
+          aria-hidden
+        />
+      )}
 
-      <OilLifeCanvas
-        key={p.id}
-        imageSrc={frames.open}
-        closedSrc={frames.closed}
-        smileSrc={smileSrc}
-        mouthSrc={mouthSrc}
-        poseSrcs={frames.pose}
-        active={active}
-      />
+      {use3d && p.model3d ? (
+        <Suspense
+          fallback={
+            <div className="oil-bust-status is-loading">Loading 3D…</div>
+          }
+        >
+          <OilBustCanvas
+            key={`3d-${p.id}`}
+            modelUrl={p.model3d}
+            accent={p.accent}
+            clipMap={p.model3dClipMap}
+            active={active}
+          />
+        </Suspense>
+      ) : (
+        <OilLifeCanvas
+          key={p.id}
+          imageSrc={frames.open}
+          closedSrc={frames.closed}
+          smileSrc={smileSrc}
+          mouthSrc={mouthSrc}
+          poseSrcs={frames.pose}
+          active={active}
+        />
+      )}
 
       <div className="portrait-grade" aria-hidden />
       <div className="portrait-canvas-finish" aria-hidden />

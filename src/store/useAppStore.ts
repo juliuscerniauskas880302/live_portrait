@@ -10,6 +10,7 @@ import type {
   LayoutMode,
   MotionState,
   PerformanceMode,
+  PortraitEngine,
   PortraitId,
   ResolvedTheme,
   ThemeMode,
@@ -71,6 +72,8 @@ export const useAppStore = create<AppStore>()(
       thunderstormEnabled: true,
       firstRunDone: false,
       autoRotateSec: 120 as AutoRotateSec,
+      // Default auto: 3D when portrait has model3d and perf is not Low
+      portraitEngine: 'auto' as PortraitEngine,
 
       resolvedTheme: resolveThemeFromClock('auto', 7, 20),
       phase: 'boot',
@@ -115,6 +118,8 @@ export const useAppStore = create<AppStore>()(
         set({ thunderstormEnabled }),
       setAutoRotateSec: (autoRotateSec: AutoRotateSec) =>
         set({ autoRotateSec, rotateNonce: get().rotateNonce + 1 }),
+      setPortraitEngine: (portraitEngine: PortraitEngine) =>
+        set({ portraitEngine }),
       setResolvedTheme: (resolvedTheme: ResolvedTheme) => set({ resolvedTheme }),
       setPhase: (phase) => set({ phase }),
       setPortrait: (currentPortraitId: PortraitId) => {
@@ -208,6 +213,7 @@ export const useAppStore = create<AppStore>()(
         firstRunDone: s.firstRunDone,
         currentPortraitId: s.currentPortraitId,
         autoRotateSec: s.autoRotateSec,
+        portraitEngine: s.portraitEngine,
       }),
     },
   ),

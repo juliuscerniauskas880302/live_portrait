@@ -250,6 +250,20 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/ashwick-closed.jpg',
     imageSmile: '/portraits/ashwick-smile.jpg',
     imageMouth: '/portraits/ashwick-mouth.jpg',
+    // Phase-1 3D pilot: free Xbot humanoid + clip map for director cues
+    model3d: '/models/Xbot.glb',
+    model3dClipMap: {
+      idle: ['idle'],
+      acknowledge: ['agree'],
+      'glance-left': ['headShake'],
+      'glance-right': ['headShake'],
+      startle: ['sneak_pose', 'headShake'],
+      'silk-reveal': ['sneak_pose', 'agree'],
+      'coy-look': ['headShake'],
+      pride: ['agree'],
+      invitation: ['agree'],
+      bored: ['sad_pose', 'idle'],
+    },
   },
   rouge: {
     id: 'rouge',

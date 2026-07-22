@@ -68,6 +68,15 @@ Irregular, hold-heavy motion:
 - **Micro-moments** (tone-aware): glance, long stare, almost-speak, soft laugh, startle, pride, bored, invitation  
 - **Acknowledge choreography** on tap  
 
+### 4.2b 3D pilot (optional)
+
+- Settings: **Portrait engine** = Auto / Painted / 3D pilot  
+- **Lord Ashwick** ships with a free glTF humanoid (`public/models/Xbot.glb`)  
+- Same motion director drives **idle + moment clips + head bones**  
+- Oil-paint post shader grades the WebGL view  
+- See `docs/3D_PORTRAITS.md` for adding clips without new still images  
+
+
 ### 4.3 Atmosphere
 
 - Day / Night grade (Auto by clock: day 07:00, night 20:00, overridable)  

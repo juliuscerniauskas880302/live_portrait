@@ -691,7 +691,7 @@ export class MotionDirector {
 
     // ── Mouth ──
     // Don't start a new murmur while smiling/moments are still settling
-    const expressionCooldown = 900
+    const expressionGap = 900
     let mouth = 0
     if (
       now >= this.nextMouthAt &&

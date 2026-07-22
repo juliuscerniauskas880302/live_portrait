@@ -69,11 +69,25 @@ export interface PortraitDef {
    * Crossfaded by motion.pose 0→1 during rare reveal moments.
    */
   imagePose?: string[]
+  /**
+   * Optional glTF/GLB for 3D oil-bust renderer (public/ path).
+   * When set and 3D engine is enabled, used instead of 2D frame stack.
+   */
+  model3d?: string
+  /**
+   * Optional per-portrait animation clip preferences.
+   * Keys are motion cues (idle, acknowledge, micro-moment ids);
+   * values are ordered GLB clip name fragments to match.
+   */
+  model3dClipMap?: Partial<Record<string, string[]>>
   /** Narrative backstory / lore for storytelling */
   lore?: string
   /** Whispered secret quote */
   quote?: string
 }
+
+/** How the living portrait is drawn */
+export type PortraitEngine = 'auto' | '2d' | '3d'
 
 export interface GazeTarget {
   x: number // -1 left … 1 right
@@ -128,6 +142,11 @@ export interface AppSettings {
   firstRunDone: boolean
   /** Portrait auto-advance interval in seconds (0 = off) */
   autoRotateSec: AutoRotateSec
+  /**
+   * auto = 3D when portrait has model3d and performance is not low;
+   * 2d / 3d force the renderer.
+   */
+  portraitEngine: PortraitEngine
 }
 
 export interface AppStore extends AppSettings {
@@ -159,6 +178,7 @@ export interface AppStore extends AppSettings {
   setSurpriseEnabled: (on: boolean) => void
   setThunderstormEnabled: (on: boolean) => void
   setAutoRotateSec: (sec: AutoRotateSec) => void
+  setPortraitEngine: (engine: PortraitEngine) => void
   setResolvedTheme: (t: ResolvedTheme) => void
   setPhase: (p: AppPhase) => void
   setPortrait: (id: PortraitId) => void
