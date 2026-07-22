@@ -1,4 +1,9 @@
-import { PLAYLIST, TONE_LABELS, getPortrait } from '../../data/portraits'
+import {
+  PLAYLIST,
+  PORTRAITS,
+  TONE_LABELS,
+  getPortrait,
+} from '../../data/portraits'
 import { useAppStore } from '../../store/useAppStore'
 import {
   toggleFullscreen,
@@ -270,15 +275,20 @@ export function SettingsSheet({ onUnlockAudio }: Props) {
               options={[
                 { value: 'auto', label: 'Auto' },
                 { value: '2d', label: 'Painted' },
-                { value: '3d', label: '3D pilot' },
+                { value: '3d', label: '3D cast' },
               ]}
               onChange={(v) => setPortraitEngine(v as PortraitEngine)}
             />
             <p className="settings-help">
-              <strong>3D pilot</strong> (Lord Ashwick): glTF + motion clips + oil
-              paint grade. Auto enables 3D when performance is not Low. If FPS
-              drops, the app switches to painted 2D for this session. Clip names
-              live in <code>public/models/clip-map.json</code>.
+              <strong>3D cast</strong>:{' '}
+              {Object.values(PORTRAITS)
+                .filter((p) => p.model3d)
+                .map((p) => p.name)
+                .join(', ') || 'none'}
+              . Uses free glTF bodies + oil face card from the painted still,
+              motion clips, and morphs when available. Auto enables 3D when
+              performance is not Low; low FPS falls back to painted 2D this
+              session. Clips: <code>public/models/clip-map.json</code>.
             </p>
             <button
               type="button"

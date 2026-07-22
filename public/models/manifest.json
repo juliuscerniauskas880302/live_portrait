@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "comment": "Phase-3 registry of free glTF pilots. portraitIds list which cast members use each model by default (also set in portraits.ts).",
+  "models": {
+    "xbot": {
+      "file": "/models/Xbot.glb",
+      "label": "Xbot humanoid",
+      "rig": "mixamo",
+      "portraitIds": ["ashwick"],
+      "notes": "Idle/agree/headShake clips"
+    },
+    "soldier": {
+      "file": "/models/Soldier.glb",
+      "label": "Soldier (Mixamo)",
+      "rig": "mixamo",
+      "portraitIds": ["knight"],
+      "notes": "Idle/Walk/Run — good for classic guard"
+    },
+    "robot": {
+      "file": "/models/RobotExpressive.glb",
+      "label": "Robot Expressive",
+      "rig": "custom",
+      "portraitIds": ["hollow"],
+      "notes": "Face morphs Angry/Surprised/Sad + Yes/Wave/No"
+    }
+  }
+}

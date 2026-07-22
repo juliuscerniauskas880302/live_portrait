@@ -60,6 +60,15 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"Honor is not bound by blood or steel, but by the promises we keep when no one is watching."',
     image: '/portraits/knight.jpg',
     imageClosed: '/portraits/knight-closed.jpg',
+    // Phase-3: free Mixamo soldier body for guard presence
+    model3d: '/models/Soldier.glb',
+    model3dClipMap: {
+      idle: ['Idle'],
+      acknowledge: ['Idle', 'Walk'],
+      startle: ['Run', 'Walk'],
+      pride: ['Idle'],
+      bored: ['Idle', 'TPose'],
+    },
   },
   scholar: {
     id: 'scholar',
@@ -162,6 +171,21 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     quote: '"We are all empty vessels waiting to be filled... some with light, others with shadow."',
     image: '/portraits/hollow.jpg',
     imageClosed: '/portraits/hollow-closed.jpg',
+    // Phase-3: expressive robot with face morphs (creepy wrong-body energy)
+    model3d: '/models/RobotExpressive.glb',
+    model3dClipMap: {
+      idle: ['Idle'],
+      acknowledge: ['Yes', 'ThumbsUp', 'Wave'],
+      wink: ['Wave', 'Yes'],
+      'glance-left': ['No'],
+      'glance-right': ['No'],
+      startle: ['Jump', 'Surprised', 'Punch'],
+      pride: ['ThumbsUp', 'Yes'],
+      bored: ['Sad', 'Sitting'],
+      invitation: ['Wave', 'Yes'],
+      'soft-laugh': ['Yes', 'ThumbsUp'],
+      'silk-reveal': ['Dance', 'Wave'],
+    },
   },
   whisperer: {
     id: 'whisperer',
@@ -250,7 +274,7 @@ export const PORTRAITS: Record<PortraitId, PortraitDef> = {
     imageClosed: '/portraits/ashwick-closed.jpg',
     imageSmile: '/portraits/ashwick-smile.jpg',
     imageMouth: '/portraits/ashwick-mouth.jpg',
-    // Phase-1 3D pilot: free Xbot humanoid + clip map for director cues
+    // Phase-3 cast: Xbot humanoid + director clip map
     model3d: '/models/Xbot.glb',
     model3dClipMap: {
       idle: ['idle'],

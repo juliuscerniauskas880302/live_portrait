@@ -1,7 +1,16 @@
-# 3D models
+# 3D models (Phase 3 cast)
 
-| File | Source | License |
-|------|--------|---------|
-| `Xbot.glb` | [three.js examples](https://threejs.org/examples/) (Xbot) | Same license as three.js samples (MIT) |
+| File | Source | License | Used by |
+|------|--------|---------|---------|
+| `Xbot.glb` | [three.js examples](https://threejs.org/examples/) | MIT (three.js samples) | Lord Ashwick |
+| `Soldier.glb` | [three.js examples](https://threejs.org/examples/) (Soldier / Mixamo-style) | MIT (three.js samples) | Sir Aldric Vale (Knight) |
+| `RobotExpressive.glb` | [three.js examples](https://threejs.org/examples/) RobotExpressive | MIT (three.js samples) | Father Hollow |
 
-Used as a **Phase 0 pilot** for the 3D oil-bust renderer. Replace with painted Mixamo / custom GLB characters for production cast.
+Also:
+
+| File | Role |
+|------|------|
+| `clip-map.json` | Runtime motion-cue → clip name preferences |
+| `manifest.json` | Model registry for tooling / docs |
+
+Replace with custom painted Mixamo / Blender GLBs (face morphs + oil albedos) for production likeness.

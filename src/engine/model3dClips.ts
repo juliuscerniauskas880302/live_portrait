@@ -39,19 +39,19 @@ export type Model3dCue =
 /** Built-in defaults (overridden by clip-map.json + per-portrait map). */
 export const DEFAULT_CLIP_PREFERENCES: Record<Model3dCue, string[]> = {
   idle: ['idle', 'stand', 'breath', 'tpose', 't-pose'],
-  acknowledge: ['agree', 'nod', 'bow', 'wave', 'hello'],
-  wink: ['wink', 'agree', 'headshake'],
+  acknowledge: ['agree', 'yes', 'nod', 'bow', 'wave', 'thumbsup', 'hello'],
+  wink: ['wink', 'agree', 'wave', 'yes', 'headshake'],
 
-  'glance-left': ['headshake', 'look', 'turn', 'idle'],
-  'glance-right': ['headshake', 'look', 'turn', 'idle'],
-  'look-down': ['sad_pose', 'sad', 'headshake', 'idle'],
-  'long-stare': ['idle', 'stand'],
-  'almost-speak': ['agree', 'talk', 'speak', 'idle'],
-  'soft-laugh': ['agree', 'happy', 'idle'],
-  startle: ['sneak_pose', 'run', 'headshake'],
-  pride: ['agree', 'idle'],
-  bored: ['sad_pose', 'idle', 'headshake'],
-  invitation: ['agree', 'wave', 'idle'],
+  'glance-left': ['headshake', 'no', 'look', 'turn', 'idle'],
+  'glance-right': ['headshake', 'no', 'look', 'turn', 'idle'],
+  'look-down': ['sad_pose', 'sad', 'sitting', 'headshake', 'idle'],
+  'long-stare': ['idle', 'stand', 'standing'],
+  'almost-speak': ['agree', 'yes', 'talk', 'speak', 'idle'],
+  'soft-laugh': ['agree', 'yes', 'thumbsup', 'happy', 'wave', 'idle'],
+  startle: ['surprised', 'sneak_pose', 'jump', 'punch', 'run', 'headshake'],
+  pride: ['thumbsup', 'agree', 'yes', 'idle'],
+  bored: ['sad_pose', 'sad', 'sitting', 'idle', 'headshake'],
+  invitation: ['wave', 'agree', 'yes', 'thumbsup', 'idle'],
 
   'coy-look': ['headshake', 'sneak_pose', 'idle'],
   'slow-look-up': ['agree', 'idle'],
@@ -158,7 +158,10 @@ export function listClipNames(clips: { name: string }[]): string[] {
   return clips.map((c) => c.name)
 }
 
-/** Standard morph target name fragments for face life. */
+/**
+ * Morph target name fragments for face life.
+ * Includes RobotExpressive (Angry / Surprised / Sad) and common Mixamo/VRM names.
+ */
 export const MORPH_GROUPS = {
   blink: [
     'blink',
@@ -168,7 +171,14 @@ export const MORPH_GROUPS = {
     'eye_blink',
     'eyes_closed',
   ],
-  smile: ['smile', 'mouthsmile', 'happy', 'mouth_smile', 'joy'],
+  smile: [
+    'smile',
+    'mouthsmile',
+    'happy',
+    'mouth_smile',
+    'joy',
+    // RobotExpressive has no smile — leave list open for future GLBs
+  ],
   mouth: [
     'mouthopen',
     'jawopen',
@@ -178,4 +188,8 @@ export const MORPH_GROUPS = {
     'a',
     'ah',
   ],
+  /** Extra expressive morphs (mapped from moments when present) */
+  surprised: ['surprised', 'shock', 'browup'],
+  sad: ['sad', 'frown', 'sorrow'],
+  angry: ['angry', 'anger', 'mad'],
 } as const

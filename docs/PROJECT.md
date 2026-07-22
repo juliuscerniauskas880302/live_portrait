@@ -68,15 +68,16 @@ Irregular, hold-heavy motion:
 - **Micro-moments** (tone-aware): glance, long stare, almost-speak, soft laugh, startle, pride, bored, invitation  
 - **Acknowledge choreography** on tap  
 
-### 4.2b 3D pilot (optional)
+### 4.2b 3D cast (optional)
 
-- Settings: **Portrait engine** = Auto / Painted / 3D pilot  
-- **Lord Ashwick** ships with a free glTF humanoid (`public/models/Xbot.glb`)  
-- Same motion director drives **idle + moment clips + head bones + morphs**  
-- Oil-paint post shader + painted materials; soft 2D portrait wash  
-- Runtime clip map: `public/models/clip-map.json` (no rebuild)  
-- Low-FPS session auto-fallback to painted 2D  
-- See `docs/3D_PORTRAITS.md` for the full pipeline  
+- Settings: **Portrait engine** = Auto / Painted / **3D cast**  
+- Free glTF pilots: **Ashwick** (Xbot), **Knight** (Soldier), **Hollow** (RobotExpressive)  
+- Motion director → idle/moment clips, head bones, morphs, painted **face card**  
+- Runtime clip map: `public/models/clip-map.json`; registry: `manifest.json`  
+- Low-FPS session auto-fallback to painted 2D (Auto mode)  
+- See `docs/3D_PORTRAITS.md`  
+
+
 
 
 ### 4.3 Atmosphere

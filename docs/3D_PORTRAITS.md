@@ -1,123 +1,89 @@
 # 3D oil portraits — motion pipeline
 
-**Phase 2** pilot: **Lord Ashwick** uses `public/models/Xbot.glb` when  
-**Settings → Portrait engine** is `Auto` (performance ≠ Low) or `3D pilot`.
+**Phase 3** expands the free glTF cast and paints oil **face cards** on the head bone.
+
+## 3D cast (current)
+
+| Portrait | Model | Highlights |
+|----------|--------|------------|
+| **Lord Ashwick** | `Xbot.glb` | agree / headShake / idle |
+| **Sir Aldric (Knight)** | `Soldier.glb` | Mixamo Idle / Walk / Run |
+| **Father Hollow** | `RobotExpressive.glb` | Yes / Wave / No + morphs Angry/Surprised/Sad |
+
+Settings → **Portrait engine**: Auto / Painted / **3D cast**.
+
+---
 
 ## Architecture
 
 ```
-motionDirector  →  motion store (blink, gaze, head, activeMoment, acknowledging)
-                         │
-                         ▼
-                 OilBustCanvas
-                   ├─ load clip-map.json (runtime)
-                   ├─ idle AnimationClip (loop)
-                   ├─ moment / acknowledge clips (one-shot)
-                   ├─ head / neck bones from headRotate / gaze
-                   ├─ face morphs when GLB provides them
-                   ├─ painted materials + optional portrait wash
-                   ├─ oil-paint full-screen shader grade
-                   └─ FPS monitor → session 2D fallback
+motionDirector → motion store
+                    │
+                    ▼
+              OilBustCanvas
+                ├─ clip-map.json + portrait model3dClipMap
+                ├─ idle + one-shot clips
+                ├─ head/neck bones
+                ├─ face morphs (when GLB has them)
+                ├─ painted head-card (2D portrait still)
+                ├─ oil full-screen grade (High)
+                └─ FPS → session 2D fallback (Auto only)
 ```
-
-2D multi-frame portraits (`OilLifeCanvas`) remain default for the rest of the cast.
 
 ---
 
-## Phase 2: add a motion without code
+## Phase 3: painted face card
 
-### A. Runtime JSON (preferred)
+When a portrait has both `model3d` and a 2D still, a soft circular **oil face card** is parented to the head bone (`attachPaintedFaceCard`).  
+That keeps identity closer to the gallery painting without requiring custom UV paint jobs yet.
 
-Edit **`public/models/clip-map.json`**:
+---
 
-```json
-{
-  "acknowledge": ["agree", "nod"],
-  "silk-reveal": ["sneak_pose", "my_new_clip"]
-}
-```
+## Add a motion (no code rebuild for prefs)
 
-Arrays are **preference order** (first matching clip name on the GLB wins).  
-Reload the app — no TypeScript rebuild required for preference changes.
+### A. Runtime JSON
 
-### B. Per-portrait override
+Edit `public/models/clip-map.json` — preference arrays, first GLB match wins.
 
-In `src/data/portraits.ts`:
+### B. Per-portrait
 
 ```ts
-model3d: '/models/my-character.glb',
+model3d: '/models/MyChar.glb',
 model3dClipMap: {
-  idle: ['idle'],
-  acknowledge: ['agree'],
-  'silk-reveal': ['silk_reveal'],
+  idle: ['Idle'],
+  acknowledge: ['Yes', 'Wave'],
+  startle: ['Jump'],
 },
 ```
 
-### C. Built-in defaults
+### C. Register in manifest (optional)
 
-`src/engine/model3dClips.ts` → `DEFAULT_CLIP_PREFERENCES`  
-(used when JSON / portrait map omit a cue)
-
-**Match rule:** case-insensitive exact or substring against clip names on the GLB.
+`public/models/manifest.json` lists files + portrait ids for tooling.
 
 ---
 
-## Face morph targets (when your GLB has them)
+## Face morphs
 
-Director weights drive morphs if present:
+| Director | Morph fragments |
+|----------|-----------------|
+| blink | blink, eyeBlink… |
+| smile | smile, happy… |
+| mouth | mouthOpen, jawOpen… |
+| startle / silk-reveal | surprised |
+| bored / look-down | sad |
+| pride / smolder | angry |
 
-| Motion | Morph name fragments (any match) |
-|--------|-----------------------------------|
-| blink | `blink`, `eyeBlinkLeft`, `eyesClosed`, … |
-| smile | `smile`, `mouthSmile`, `happy`, … |
-| mouth | `mouthOpen`, `jawOpen`, `viseme_aa`, … |
-
-Xbot has **no morphs** — face life is head-bone only until you swap in a morph-ready character.
-
----
-
-## Painted materials
-
-`applyPaintedMaterials` (Phase 2):
-
-- Warmer, rougher, less plastic shading  
-- Soft blend of the 2D portrait still as map/emissive wash  
-- Works with oil post-process shader for canvas grade  
-
----
-
-## FPS auto-fallback
-
-If average FPS stays **&lt; 18** for ~4s while 3D is active:
-
-- Session flag `model3dFpsFallback` → renderer switches to **painted 2D**  
-- Toast: “3D struggling — switched to painted view”  
-- Clears when you change **Portrait engine**  
-- Not persisted across full page reloads  
-
----
-
-## Xbot pilot clips
-
-| Clip | Used for |
-|------|----------|
-| `idle` | ambient loop |
-| `agree` | acknowledge / invitation / soft laugh |
-| `headShake` | glances / coy look |
-| `sneak_pose` | startle / silk-reveal |
-| `sad_pose` | bored / look-down |
-| `walk` / `run` | rarely matched |
+Hollow’s robot demonstrates Surprised / Sad / Angry.
 
 ---
 
 ## Export checklist (Blender → GLB)
 
-- Units: meters; character ~1.6–1.8 m  
-- Apply transforms; standing rest pose  
-- Export **glTF Binary (.glb)** with armature + animations + materials  
-- Short one-shots (1–3 s) for moments; looping idle for weight shift  
-- Optional morphs named for blink / smile / mouthOpen  
-- Prefer **&lt; 8 MB** for tablets  
+- ~1.6–1.8 m tall, meters, applied scale  
+- Armature + short one-shot clips + looping idle  
+- Optional morphs: blink, smile, mouthOpen, surprised, sad, angry  
+- Prefer &lt; 8 MB for tablets  
+- Drop file in `public/models/`, set `model3d` on the portrait  
 
 ---
 
@@ -125,13 +91,13 @@ If average FPS stays **&lt; 18** for ~4s while 3D is active:
 
 | Mode | Behavior |
 |------|----------|
-| Low | Auto uses **2D** |
-| Balanced / High | Auto uses 3D when `model3d` set |
-| 3D pilot | Force 3D |
+| Low | Auto → 2D |
+| Balanced / High | Auto → 3D if `model3d` set |
+| 3D cast | Force 3D |
 | Painted | Force 2D |
-| Low FPS | Session fallback to 2D |
+| Low FPS (Auto) | Session fallback to 2D |
 
-Three.js is **code-split** (`OilBustCanvas` lazy chunk).
+Three.js is code-split (`OilBustCanvas` lazy chunk).
 
 ---
 
@@ -139,7 +105,8 @@ Three.js is **code-split** (`OilBustCanvas` lazy chunk).
 
 | Phase | Status |
 |-------|--------|
-| 0 Spike (load + frame) | Done |
-| 1 Clips + oil grade + settings | Done |
-| 2 JSON clip map, paint mats, morphs, FPS fallback | Done |
-| 3 Custom painted cast GLBs / Mixamo pack | Next |
+| 0 Spike | Done |
+| 1 Clips + oil grade | Done |
+| 2 JSON map, paint mats, morphs, FPS fallback | Done |
+| 3 Multi-cast + face cards + free model pack | Done |
+| 4 Custom oil-painted GLBs matching each portrait | Future |
