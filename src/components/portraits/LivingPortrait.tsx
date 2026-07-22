@@ -204,6 +204,14 @@ export function LivingPortrait({
             clipMap={p.model3dClipMap}
             modelStyle={p.model3dStyle ?? 'auto'}
             faceCard={p.model3dFaceCard}
+            palette={{
+              skin: p.skin,
+              hair: p.hair,
+              robe: p.robe,
+              robeDark: p.robeDark,
+              accent: p.accent,
+              eyeColor: p.eyeColor,
+            }}
             active={active}
           />
         </Suspense>

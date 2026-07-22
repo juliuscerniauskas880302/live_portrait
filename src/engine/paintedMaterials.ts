@@ -73,6 +73,107 @@ export function detectRealisticModel(root: THREE.Object3D): boolean {
   return hits >= 2
 }
 
+/** Palette from PortraitDef — used to differentiate shared meshes (Phase 5). */
+export type PortraitPalette = {
+  skin?: string
+  hair?: string
+  robe?: string
+  robeDark?: string
+  accent?: string
+  eyeColor?: string
+}
+
+type MatRole = 'skin' | 'hair' | 'outfitTop' | 'outfitBottom' | 'shoes' | 'eyes' | 'other'
+
+function classifyMaterial(name: string): MatRole {
+  const n = name.toLowerCase()
+  if (/eye(?!lash)|eyeball|cornea|iris/.test(n)) return 'eyes'
+  if (/lash|brow|tooth|teeth|oral|mouth_inner/.test(n)) return 'other'
+  if (/hair|scalp|beard|mustache/.test(n)) return 'hair'
+  if (
+    /skin|body|head|face|avatarbody|avatarhead|wolf3d_skin|wolf3d_body/.test(n)
+  ) {
+    return 'skin'
+  }
+  if (/footwear|shoe|boot|outfit_shoes/.test(n)) return 'shoes'
+  if (/bottom|pants|skirt|legs|outfit_bottom|bottoms/.test(n)) return 'outfitBottom'
+  if (
+    /top|outfit_top|tops|shirt|dress|robe|cloth|jacket|coat|onepiece|armor|suit/.test(
+      n,
+    )
+  ) {
+    return 'outfitTop'
+  }
+  // AvatarSDK generic outfit
+  if (/outfit/.test(n)) return 'outfitTop'
+  return 'other'
+}
+
+function tintColor(
+  base: THREE.Color,
+  targetHex: string | undefined,
+  amount: number,
+) {
+  if (!targetHex || amount <= 0) return
+  const t = new THREE.Color(targetHex)
+  base.lerp(t, amount)
+}
+
+/**
+ * Phase 5: recolor shared realistic meshes so each portrait reads as unique.
+ * Multiplies / lerps material.color while keeping albedo maps.
+ */
+export function applyPortraitPalette(
+  root: THREE.Object3D,
+  palette: PortraitPalette,
+  strength = 0.72,
+) {
+  const s = THREE.MathUtils.clamp(strength, 0, 1)
+  root.traverse((c) => {
+    const mesh = c as THREE.Mesh
+    if (!mesh.isMesh) return
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    for (const m of mats) {
+      if (!m || !('color' in m)) continue
+      const mat = m as THREE.MeshStandardMaterial
+      if (!mat.color?.isColor) continue
+
+      const role = classifyMaterial(`${mat.name || ''} ${mesh.name || ''}`)
+      // Start from white so map * color ≈ tinted texture
+      if (mat.map) {
+        mat.color.setRGB(1, 1, 1)
+      }
+
+      switch (role) {
+        case 'skin':
+          tintColor(mat.color, palette.skin, s * 0.55)
+          break
+        case 'hair':
+          tintColor(mat.color, palette.hair, s * 0.85)
+          break
+        case 'outfitTop':
+          tintColor(mat.color, palette.robe, s * 0.8)
+          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.12)
+          break
+        case 'outfitBottom':
+          tintColor(mat.color, palette.robeDark ?? palette.robe, s * 0.75)
+          break
+        case 'shoes':
+          tintColor(mat.color, palette.robeDark ?? palette.hair, s * 0.65)
+          break
+        case 'eyes':
+          // subtle iris lean only
+          if (palette.eyeColor) tintColor(mat.color, palette.eyeColor, s * 0.25)
+          break
+        default:
+          if (palette.accent) tintColor(mat.color, palette.accent, s * 0.08)
+          break
+      }
+      mat.needsUpdate = true
+    }
+  })
+}
+
 /**
  * In-place material tweak. Keeps original instances so skinning + textures work.
  * `mode: 'realistic'` preserves baked textures; only soft warmth.
@@ -85,6 +186,7 @@ export function applyPaintedMaterials(
     paintMap?: THREE.Texture | null
     paintStrength?: number
     mode?: 'realistic' | 'stylized'
+    palette?: PortraitPalette
   } = {},
 ) {
   const accent = new THREE.Color(opts.accent ?? '#c9a227')
@@ -133,7 +235,7 @@ export function applyPaintedMaterials(
 
       if ('color' in mat && mat.color && mat.color.isColor) {
         if (realistic) {
-          // Keep albedo; tiny warm bias only
+          // Keep albedo; tiny warm bias only (palette applied after)
           mat.color.offsetHSL(0.008, -0.02, 0)
         } else {
           mat.color.offsetHSL(0.015, -0.06, -0.02)
@@ -165,6 +267,11 @@ export function applyPaintedMaterials(
       mat.needsUpdate = true
     }
   })
+
+  // Phase 5: per-portrait uniqueness on shared meshes
+  if (opts.palette) {
+    applyPortraitPalette(root, opts.palette, realistic ? 0.7 : 0.45)
+  }
 }
 
 /**

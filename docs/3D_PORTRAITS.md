@@ -71,10 +71,21 @@ Realistic GLBs are ~2–12 MB. Prefer **Balanced/High**. Auto falls back to pain
 3. Point `model3d` at it; set `model3dStyle: 'realistic'`.  
 4. Map any clips in `clip-map.json` or `model3dClipMap`.  
 
+## Phase 5 — per-portrait uniqueness (shared mesh)
+
+Most cast members still share 1–2 base bodies. Phase 5 differentiates them by:
+
+1. **Palette tint** — `skin` / `hair` / `robe` / `robeDark` / `accent` / `eyeColor` from `PortraitDef` recolor materials (map × color)  
+2. **Accent rim light** — warm/cool edge light from portrait accent  
+3. **Slight scale / yaw** — seed from palette strings so stance isn’t identical  
+
+This is not a full custom mesh per character, but makes Vespera (crimson) vs Briarwyn (emerald) read differently on the same brunette base.
+
 ## Roadmap
 
 | Phase | Status |
 |-------|--------|
 | 0–3 Sample bodies + face cards | Done (legacy) |
-| **4 Realistic textured cast** | **Done** |
-| 5 Per-portrait unique meshes (custom) | Future |
+| 4 Realistic textured cast | Done |
+| **5 Per-portrait palette uniqueness** | **Done** |
+| 6 Unique custom GLB per portrait | Future |

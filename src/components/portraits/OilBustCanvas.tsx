@@ -16,6 +16,7 @@ import {
   detachPaintedFaceCard,
   setMorphGroup,
   type MorphMesh,
+  type PortraitPalette,
 } from '../../engine/paintedMaterials'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -28,6 +29,8 @@ interface Props {
   modelStyle?: 'auto' | 'realistic' | 'stylized'
   /** Force face-card overlay (default: stylized only) */
   faceCard?: boolean
+  /** Phase-5 per-portrait color identity */
+  palette?: PortraitPalette
   active: boolean
 }
 
@@ -54,6 +57,7 @@ export function OilBustCanvas({
   clipMap,
   modelStyle = 'auto',
   faceCard: faceCardPref,
+  palette,
   active,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -151,6 +155,13 @@ export function OilBustCanvas({
     const rim = new THREE.DirectionalLight(0xffaa66, 0.8)
     rim.position.set(0, 2, -3)
     scene.add(rim)
+    // Phase-5: accent-tinted rim for portrait identity
+    try {
+      rim.color.set(accent)
+      rim.color.lerp(new THREE.Color(0xffaa66), 0.45)
+    } catch {
+      /* keep default */
+    }
     const candle = new THREE.PointLight(0xff9944, 0.75, 10, 2)
     candle.position.set(1.3, 1.15, 1.5)
     scene.add(candle)
@@ -339,8 +350,18 @@ export function OilBustCanvas({
               paintMap: paintTex,
               paintStrength: isRealistic ? 0 : 0.12,
               mode: isRealistic ? 'realistic' : 'stylized',
+              palette: palette ?? { accent },
             })
             morphMeshes = collectMorphMeshes(model)
+
+            // Subtle per-portrait scale / stance so shared meshes differ
+            if (palette?.robe || palette?.hair) {
+              const h =
+                (palette.hair || '').length + (palette.robe || '').length
+              const seed = (h % 7) / 7
+              model.scale.multiplyScalar(0.97 + seed * 0.06)
+              model.rotation.y += (seed - 0.5) * 0.08
+            }
 
             // Only remove placeholder after model is in the graph
             root.add(model)
@@ -662,6 +683,7 @@ export function OilBustCanvas({
     clipMap,
     modelStyle,
     faceCardPref,
+    palette,
     perf,
   ])
 
