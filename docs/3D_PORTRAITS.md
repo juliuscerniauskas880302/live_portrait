@@ -108,18 +108,24 @@ Edit **`public/models/portrait-looks.json`** (no rebuild):
 
 Also: salon **backdrop color** follows `background` / `backgroundNight` from the portrait.
 
-## Procedural multi-idle (no T-pose)
+## Mixamo animation pack (preferred)
 
-Realistic sample GLBs often have **zero animation clips** and load in T-pose.  
-`IdlePoseSystem` fixes that:
+`mixamoAnimPack.ts` loads free Mixamo-rigged clips from **Xbot** + **Soldier**,  
+strips the `mixamorig:` bone prefix, and plays them on realistic humans  
+(Ready Player Me / AvatarSDK share the same bone names).
 
-1. Capture rest bone quaternions  
-2. Arms down into a natural rest  
-3. Cycle idle poses: rest → weight-left → weight-right → think → open → shy  
-4. **Smoothstep crossfade** ~1.6–2.8s between poses  
-5. Hold each pose 3–7s; micro-moments nudge related poses  
+- **IdleClipCycle** — smooth fade between several idles every ~5–9s  
+- **Gestures** — agree / headShake / etc. on tap & micro-moments, then return to idle  
+- **Procedural idle** — only if no clips retarget successfully  
 
-Clip-based idle still used when the GLB embeds animations.
+### Add your own Mixamo downloads
+
+See `public/models/mixamo/README.md`:
+
+1. mixamo.com → FBX animations  
+2. Blender → GLB  
+3. Add path to `PACK_SOURCES` in `mixamoAnimPack.ts`  
+4. Optional: map names in `clip-map.json`
 
 ## Roadmap
 

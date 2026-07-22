@@ -27,3 +27,16 @@ Sourced from [met4citizen/TalkingHead](https://github.com/met4citizen/TalkingHea
 |------|------|
 | `clip-map.json` | Motion cue → animation clip name preferences |
 | `manifest.json` | Model registry |
+| `portrait-looks.json` | Per-portrait identity / sway / model override |
+| `mixamo/README.md` | How to add Mixamo FBX→GLB animation packs |
+
+## Mixamo clips (retargeted)
+
+Animation data is taken from free Mixamo-compatible sample GLBs already in this repo:
+
+| Source GLB | Clips used |
+|------------|------------|
+| `Xbot.glb` | idle, agree, headShake, sad_pose, … |
+| `Soldier.glb` | Idle, Walk, Run |
+
+Retargeted onto realistic cast meshes at runtime (quaternion tracks; hips position scaled).

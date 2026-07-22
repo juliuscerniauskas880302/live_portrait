@@ -21,6 +21,12 @@ import {
 } from '../../engine/paintedMaterials'
 import { IdlePoseSystem } from '../../engine/idlePoseSystem'
 import {
+  IdleClipCycle,
+  loadMixamoAnimPack,
+  pickIdleClips,
+  retargetClipsToModel,
+} from '../../engine/mixamoAnimPack'
+import {
   hideNamedMeshes,
   loadPortraitLooks,
   resolvePortraitLook,
@@ -114,8 +120,9 @@ export function OilBustCanvas({
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.1
     renderer.domElement.className = 'oil-bust-canvas'
+    // Fill parent via CSS; drawing buffer set in resize() — never leave default 300×150
     renderer.domElement.style.cssText =
-      'position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;'
+      'position:absolute;left:0;top:0;width:100%;height:100%;display:block;z-index:1;touch-action:none;'
     mount.appendChild(renderer.domElement)
 
     // Oil pass: subtle on realistic (keep textures), stronger on stylized; High only
@@ -207,6 +214,7 @@ export function OilBustCanvas({
     let idleAction: THREE.AnimationAction | null = null
     let momentAction: THREE.AnimationAction | null = null
     let idlePoses: IdlePoseSystem | null = null
+    let idleCycle: IdleClipCycle | null = null
     const clips: THREE.AnimationClip[] = []
     const bones: BoneMap = { head: placeholder.head }
     let baseHeadQuat = placeholder.head.quaternion.clone()
@@ -283,23 +291,32 @@ export function OilBustCanvas({
       ) {
         return true
       }
+      // Prefer Mixamo cycle gesture path (smooth return to idle)
+      if (idleCycle?.active) {
+        momentAction = idleCycle.playGesture(clip, 0.5)
+        return true
+      }
       if (momentAction && momentAction.getClip() !== clip) {
-        momentAction.fadeOut(0.35)
+        momentAction.fadeOut(0.4)
       }
       const action = mixer.clipAction(clip)
       action.reset()
       action.setLoop(THREE.LoopOnce, 1)
       action.clampWhenFinished = true
-      action.fadeIn(0.4)
+      action.fadeIn(0.45)
       action.setEffectiveWeight(0.95)
       action.setEffectiveTimeScale(0.85)
       action.play()
       momentAction = action
       if (idleAction) {
-        idleAction.setEffectiveWeight(0.25)
+        idleAction.fadeOut(0.4)
         window.setTimeout(() => {
-          if (!disposed && idleAction) idleAction.setEffectiveWeight(0.8)
-        }, Math.min(4500, clip.duration * 1000 + 500))
+          if (!disposed && idleAction) {
+            idleAction.reset()
+            idleAction.fadeIn(0.5)
+            idleAction.play()
+          }
+        }, Math.min(4500, clip.duration * 1000 + 400))
       }
       return true
     }
@@ -362,6 +379,7 @@ export function OilBustCanvas({
       loader.load(
         resolvedModelUrl,
         (gltf) => {
+          void (async () => {
           if (disposed) return
           try {
             const model = gltf.scene
@@ -447,38 +465,70 @@ export function OilBustCanvas({
               oilMat.uniforms.uStrength.value = 0.28
             }
 
+            mixer = new THREE.AnimationMixer(model)
             if (gltf.animations?.length) {
-              mixer = new THREE.AnimationMixer(model)
               clips.push(...gltf.animations)
+            }
+
+            // Mixamo pack: retarget free Xbot/Soldier (and future mixamo/*.glb) clips
+            try {
+              const pack = await loadMixamoAnimPack(
+                import.meta.env.BASE_URL || '/',
+              )
+              const retargeted = retargetClipsToModel(pack, model, 1)
+              const have = new Set(clips.map((c) => c.name.toLowerCase()))
+              for (const c of retargeted) {
+                if (!have.has(c.name.toLowerCase())) {
+                  clips.push(c)
+                  have.add(c.name.toLowerCase())
+                }
+              }
+            } catch (e) {
+              console.warn('[OilBust] Mixamo pack failed', e)
+            }
+
+            if (clips.length) {
               mixer.addEventListener('finished', (e) => {
                 const act = e.action as THREE.AnimationAction
                 if (act === momentAction) {
-                  act.fadeOut(0.4)
-                  if (idleAction) idleAction.setEffectiveWeight(0.85)
+                  act.fadeOut(0.45)
                 }
               })
-              const idleName = resolveClipName(clips, 'idle', override)
-              const idleClip =
-                clips.find((c) => c.name === idleName) ?? clips[0]
-              idleAction = mixer.clipAction(idleClip)
-              idleAction.reset().play()
-              idleAction.setLoop(THREE.LoopRepeat, Infinity)
-              idleAction.setEffectiveWeight(0.85)
-              idleAction.setEffectiveTimeScale(0.7)
-              mixer.update(0.05)
+              const idleClips = pickIdleClips(clips)
+              if (idleClips.length >= 1) {
+                idleCycle = new IdleClipCycle(mixer, idleClips, {
+                  timeScale: 0.72,
+                })
+                // Keep first idle as idleAction ref for legacy fade
+                idleAction = mixer.clipAction(idleClips[0])
+              } else {
+                const idleName = resolveClipName(clips, 'idle', override)
+                const idleClip =
+                  clips.find((c) => c.name === idleName) ?? clips[0]
+                idleAction = mixer.clipAction(idleClip)
+                idleAction.reset().play()
+                idleAction.setLoop(THREE.LoopRepeat, Infinity)
+                idleAction.setEffectiveWeight(1)
+                idleAction.setEffectiveTimeScale(0.72)
+              }
+              mixer.update(0.02)
             }
 
-            // Realistic GLBs often have NO clips → T-pose. Drive multi-idle on bones.
-            idlePoses = new IdlePoseSystem(model)
-            // Apply first pose immediately so first frame isn't T-pose
-            idlePoses.update(performance.now(), 0.016, {
-              breath: 0.5,
-              sway: lookSway,
-              skipHead: true,
-            })
-            // Refresh head rest after arm fix (skeleton settled)
-            if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
-            if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
+            // Procedural idle ONLY when no Mixamo/retargeted clips available
+            if (!clips.length) {
+              idlePoses = new IdlePoseSystem(model)
+              idlePoses.update(performance.now(), 0.016, {
+                breath: 0.5,
+                sway: lookSway,
+                skipHead: true,
+              })
+              if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
+              if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
+            } else {
+              // Clips drive body; still capture head rest for director
+              if (bones.head) baseHeadQuat.copy(bones.head.quaternion)
+              if (bones.neck) baseNeckQuat.copy(bones.neck.quaternion)
+            }
 
             model.updateMatrixWorld(true)
             const box = new THREE.Box3().setFromObject(model)
@@ -500,6 +550,7 @@ export function OilBustCanvas({
               portraitId,
               style: isRealistic ? 'realistic' : 'stylized',
               clips: clips.map((c) => c.name),
+              mixamoCycle: idleCycle?.active ?? false,
               proceduralIdle: idlePoses?.active ?? false,
               morphs: morphMeshes.length,
               faceCard: Boolean(faceCard),
@@ -513,6 +564,7 @@ export function OilBustCanvas({
               root.add(placeholder.group)
             }
           }
+          })()
         },
         (ev) => {
           if (ev.total > 0) {
@@ -531,28 +583,58 @@ export function OilBustCanvas({
 
     let lastW = 0
     let lastH = 0
+    /** Walk parents — Chrome often reports 0×0 on absolute mounts before layout. */
+    const measure = () => {
+      let el: HTMLElement | null = mount
+      let w = 0
+      let h = 0
+      for (let i = 0; i < 6 && el; i++) {
+        const r = el.getBoundingClientRect()
+        const cw = el.clientWidth
+        const ch = el.clientHeight
+        w = Math.max(w, Math.floor(r.width), cw)
+        h = Math.max(h, Math.floor(r.height), ch)
+        if (w >= 64 && h >= 64) break
+        el = el.parentElement
+      }
+      // Fallback to viewport portrait area so we never keep a 2×800 strip
+      if (w < 64) w = Math.max(64, Math.floor(window.innerWidth * 0.5))
+      if (h < 64) h = Math.max(64, Math.floor(window.innerHeight * 0.6))
+      // Clamp absurd aspect (thin line symptom)
+      if (w / h > 2.5) w = Math.floor(h * 0.78)
+      if (h / w > 3.5) h = Math.floor(w * 1.35)
+      return { w, h }
+    }
     const resize = () => {
-      const rect = mount.getBoundingClientRect()
-      const w = Math.max(2, Math.floor(rect.width))
-      const h = Math.max(2, Math.floor(rect.height))
+      const { w, h } = measure()
       if (w === lastW && h === lastH) return
       lastW = w
       lastH = h
-      camera.aspect = w / h
+      camera.aspect = w / Math.max(1, h)
       camera.updateProjectionMatrix()
       const pr = Math.min(window.devicePixelRatio || 1, isLow ? 1 : 1.5)
       renderer.setPixelRatio(pr)
+      // updateStyle false + CSS 100% fills frame; buffer matches measured size
       renderer.setSize(w, h, false)
+      renderer.domElement.style.width = '100%'
+      renderer.domElement.style.height = '100%'
       if (rt) {
         rt.setSize(Math.floor(w * pr), Math.floor(h * pr))
         if (oilMat) oilMat.uniforms.uRes.value.set(w * pr, h * pr)
       }
     }
-    const ro = new ResizeObserver(resize)
+    const ro = new ResizeObserver(() => {
+      // Coalesce RO storms
+      requestAnimationFrame(resize)
+    })
     ro.observe(mount)
+    if (mount.parentElement) ro.observe(mount.parentElement)
+    resize()
     requestAnimationFrame(resize)
     setTimeout(resize, 50)
-    setTimeout(resize, 250)
+    setTimeout(resize, 200)
+    setTimeout(resize, 500)
+    window.addEventListener('resize', resize)
 
     const euler = new THREE.Euler()
     const quat = new THREE.Quaternion()
@@ -566,8 +648,8 @@ export function OilBustCanvas({
       const m = store.motion
       const night = store.resolvedTheme === 'night'
 
-      // Force size if still zero (layout lag)
-      if (lastW < 2 || lastH < 2) resize()
+      // Force size if still collapsed (Chrome layout lag)
+      if (lastW < 64 || lastH < 64) resize()
 
       // FPS only after character is up and grace period
       if (
@@ -605,9 +687,10 @@ export function OilBustCanvas({
       candle.intensity = 0.55 + Math.sin(t * 3.2) * 0.12
 
       if (mixer) mixer.update(dt)
+      if (idleCycle?.active) idleCycle.update(performance.now())
 
-      // Multi-idle body (arms down, weight shift) with smooth pose crossfades
-      if (idlePoses?.active) {
+      // Procedural idle only when no Mixamo clips
+      if (idlePoses?.active && !idleCycle?.active) {
         idlePoses.update(performance.now(), dt, {
           breath: m.breath,
           sway: lookSway,
@@ -638,10 +721,10 @@ export function OilBustCanvas({
       root.rotation.y =
         Math.sin(t * 0.22) * 0.06 * lookSway + m.gaze.x * 0.05
 
-      // Moment → expressive morphs + idle pose nudge
+      // Moment → Mixamo gesture or procedural nudge + morphs
       if (m.activeMoment && m.activeMoment !== lastMoment) {
         const mid = m.activeMoment
-        idlePoses?.nudgeFromMoment(mid)
+        if (!idleCycle?.active) idlePoses?.nudgeFromMoment(mid)
         if (
           mid === 'startle' ||
           mid === 'surprise' ||
@@ -711,7 +794,7 @@ export function OilBustCanvas({
         lastMoment = null
       }
 
-      if (lastW < 2 || lastH < 2) return
+      if (lastW < 64 || lastH < 64) return
 
       try {
         if (useOilPass && rt && oilScene && oilCam && oilMat) {
@@ -747,16 +830,12 @@ export function OilBustCanvas({
       disposed = true
       cancelAnimationFrame(raf)
       ro.disconnect()
+      window.removeEventListener('resize', resize)
+      idleCycle?.stop()
       mixer?.stopAllAction()
       rt?.dispose()
       oilMat?.dispose()
       paintTex?.dispose()
-      scene.traverse((obj) => {
-        const mesh = obj as THREE.Mesh
-        if (!mesh.isMesh) return
-        // Don't dispose glTF shared geometry/materials aggressively — only our own
-      })
-      // Dispose only scene helpers we created
       wall.geometry.dispose()
       ;(wall.material as THREE.Material).dispose()
       floor.geometry.dispose()
